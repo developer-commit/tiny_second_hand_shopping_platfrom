@@ -1,0 +1,15 @@
+# Rust & Cargo
+**/target/
+**/.cargo/
+Cargo.lock
+
+# Frontend Local Build Outputs
+frontend/dist/
+frontend/.dist/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+.env

@@ -1,0 +1,407 @@
+openapi: 3.0.3
+info:
+  title: 중고 거래 플랫폼 API (C2C BCH Trading Platform)
+  description: 비트코인 캐시(BCH) 기반의 안전결제(에스크로)를 지원하는 중고 거래 플랫폼 API 명세서 (보안 DTO 적용)
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/v1
+    description: 로컬 개발 서버 (Local)
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    # ---------------------------------------------------------
+    # [스키마 은닉 & 식별자 난독화 적용됨]
+    # ---------------------------------------------------------
+    UserProfileRes:
+      type: object
+      properties:
+        user_uid:
+          type: string
+          description: "난독화된 유저 고유 식별자 (DB id 숨김)"
+        display_name:
+          type: string
+          description: "유저 닉네임 (DB username 숨김)"
+        reliability_index:
+          type: number
+          format: float
+          description: "신뢰도 점수 (DB trust_score 숨김)"
+        require_otp:
+          type: boolean
+          description: "2FA 활성화 여부 (DB is_2fa_enabled 숨김)"
+
+    ItemDetailRes:
+      type: object
+      properties:
+        item_uid:
+          type: string
+          description: "난독화된 상품 식별자"
+        owner_uid:
+          type: string
+          description: "난독화된 판매자 식별자"
+        heading:
+          type: string
+          description: "상품 제목 (DB title 숨김)"
+        detail_body:
+          type: string
+          description: "상품 설명 (DB description 숨김)"
+        asking_price:
+          type: number
+          format: float
+          description: "요구 가격 (DB price 숨김)"
+        group_category:
+          type: string
+          description: "상품 카테고리 (DB category 숨김)"
+        current_state:
+          type: string
+          enum: [on_sale, reserved, sold]
+          description: "현재 판매 상태 (DB status 숨김)"
+        hit_count:
+          type: integer
+          description: "조회수 (DB view_count 숨김)"
+        image_urls:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    WalletStateRes:
+      type: object
+      properties:
+        public_address:
+          type: string
+          description: "입금용 외부 공개 주소"
+        available_balance:
+          type: number
+          format: float
+          description: "사용 가능한 잔여 BCH"
+        locked_in_escrow:
+          type: number
+          format: float
+          description: "안전결제(에스크로)로 묶인 금액"
+
+    SafeTradeStatusRes:
+      type: object
+      properties:
+        trade_uid:
+          type: string
+          description: "난독화된 에스크로 거래 식별자"
+        item_uid:
+          type: string
+          description: "연관된 상품 식별자"
+        locked_funds:
+          type: number
+          format: float
+          description: "예치된 금액 (DB amount 숨김)"
+        step:
+          type: string
+          enum: [deposited, received, disputed, settled, refunded]
+          description: "현재 거래 단계 (DB status 숨김)"
+        auto_finalize_deadline:
+          type: string
+          format: date-time
+          description: "자동 수령 확정 기한 (DB auto_confirm_at 숨김)"
+
+paths:
+  # ==========================================
+  # Module 1. Auth & Users
+  # ==========================================
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: 회원가입 (이메일/SMS 본인인증 포함)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, secret_key, contact_email, contact_phone, verification_code]
+              properties:
+                account_id: { type: string }
+                secret_key: { type: string }
+                contact_email: { type: string }
+                contact_phone: { type: string }
+                verification_code: { type: string }
+      responses:
+        '201':
+          description: Created
+  
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: 로그인 및 토큰 발급
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, secret_key]
+              properties:
+                account_id: { type: string }
+                secret_key: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string }
+  
+  /users/me:
+    get:
+      tags: [Users]
+      summary: 내 프로필 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileRes'
+
+  # ==========================================
+  # Module 2 & 3. Products & Search
+  # ==========================================
+  /products:
+    get:
+      tags: [Products]
+      summary: 상품 목록 조회 및 검색
+      security: []
+      parameters:
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: group_category
+          schema: { type: string }
+        - in: query
+          name: item_tag
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ItemDetailRes'
+    post:
+      tags: [Products]
+      summary: 상품 등록
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                heading: { type: string }
+                detail_body: { type: string }
+                asking_price: { type: number, format: float }
+                group_category: { type: string }
+                item_tags: { type: array, items: { type: string } }
+      responses:
+        '201':
+          description: Created
+
+  /products/{item_uid}/status:
+    patch:
+      tags: [Products]
+      summary: 상품 상태 변경 (판매중/예약중/판매완료)
+      parameters:
+        - in: path
+          name: item_uid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_state:
+                  type: string
+                  enum: [on_sale, reserved, sold]
+      responses:
+        '200':
+          description: OK
+
+  # ==========================================
+  # Module 5. Wallet
+  # ==========================================
+  /wallet:
+    get:
+      tags: [Wallet]
+      summary: 내 지갑 정보 및 잔액 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletStateRes'
+
+  /wallet/withdraw:
+    post:
+      tags: [Wallet]
+      summary: 외부 지갑으로 출금 (네트워크 수수료 계산 및 2FA 필수)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destination_address, amount_bch, otp_token]
+              properties:
+                destination_address: { type: string }
+                amount_bch: { type: number, format: float }
+                otp_token: { type: string, description: "2FA OTP 코드" }
+      responses:
+        '200':
+          description: 출금 요청 성공
+
+  # ==========================================
+  # Module 5. Escrow (안전결제)
+  # ==========================================
+  /escrow:
+    post:
+      tags: [Escrow]
+      summary: 에스크로 안전결제 예치
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                item_uid: { type: string }
+      responses:
+        '201':
+          description: 예치 성공
+
+  /escrow/{trade_uid}/confirm:
+    post:
+      tags: [Escrow]
+      summary: 구매자 수령 승인 및 정산
+      parameters:
+        - in: path
+          name: trade_uid
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 정산 완료
+
+  /escrow/{trade_uid}/dispute:
+    post:
+      tags: [Escrow]
+      summary: 구매자 수령 거부 (분쟁 발생)
+      parameters:
+        - in: path
+          name: trade_uid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cause: { type: string }
+      responses:
+        '200':
+          description: 분쟁 접수 완료
+
+  # ==========================================
+  # Module 4. Reviews
+  # ==========================================
+  /escrow/{trade_uid}/reviews:
+    post:
+      tags: [Reviews]
+      summary: 거래 완료 후 리뷰 및 평점 작성
+      parameters:
+        - in: path
+          name: trade_uid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  description: "평점 (DB rating 숨김)"
+                feedback:
+                  type: string
+                  description: "리뷰 내용 (DB comment 숨김)"
+      responses:
+        '201':
+          description: 리뷰 작성 완료
+
+  # ==========================================
+  # Module 6. Moderation (신고)
+  # ==========================================
+  /products/{item_uid}/reports:
+    post:
+      tags: [Moderation]
+      summary: 불량 상품 신고
+      parameters:
+        - in: path
+          name: item_uid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cause]
+              properties:
+                cause: { type: string }
+      responses:
+        '201':
+          description: 신고 접수 완료
+
+  # ==========================================
+  # Module 7. Admin
+  # ==========================================
+  /admin/stats:
+    get:
+      tags: [Admin]
+      summary: 플랫폼 지갑 모니터링 및 누적 수수료 수익 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_accumulated_bch: 
+                    type: number
+                    format: float
