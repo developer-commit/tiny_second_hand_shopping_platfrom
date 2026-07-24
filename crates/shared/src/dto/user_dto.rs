@@ -77,6 +77,7 @@ pub struct UserProfileRes {
     pub reliability_index: f64,        // DB: trust_score
     pub require_otp: bool,             // DB: is_2fa_enabled
     pub account_status: String,        // DB: status (active/dormant/suspended)
+    pub role: String,                  // DB: role (user/admin)
     pub joined_at: String,             // DB: created_at
 }
 

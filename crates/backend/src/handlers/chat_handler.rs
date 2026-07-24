@@ -86,6 +86,10 @@ pub async fn send_message(
     Path(_room_uid): Path<String>,
     Json(req): Json<shared::dto::chat_dto::SendMessageReq>,
 ) -> Result<Json<ChatMessagePayload>, AppError> {
+    use validator::Validate;
+    req.validate()
+        .map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
+
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
 
     state

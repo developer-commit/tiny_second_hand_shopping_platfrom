@@ -19,6 +19,10 @@ pub async fn initiate_escrow(
     axum::Extension(claims): axum::Extension<Claims>,
     Json(req): Json<InitiateEscrowReq>,
 ) -> Result<(StatusCode, Json<SafeTradeStatusRes>), AppError> {
+    use validator::Validate;
+    req.validate()
+        .map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
+
     let buyer_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
     state
         .escrow_service
@@ -80,6 +84,10 @@ pub async fn dispute_escrow(
     Path(trade_uid): Path<String>,
     Json(req): Json<DisputeEscrowReq>,
 ) -> Result<StatusCode, AppError> {
+    use validator::Validate;
+    req.validate()
+        .map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
+
     let buyer_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
     let trade_id =
         deobfuscate(&trade_uid).map_err(|_| AppError::NotFound("Not found".to_string()))?;

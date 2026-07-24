@@ -43,7 +43,7 @@ impl AuthStore {
         let is_admin = Signal::derive(move || {
             current_user
                 .get()
-                .map(|u| u.account_status == "admin")
+                .map(|u| u.role == "admin")
                 .unwrap_or(false)
         });
 

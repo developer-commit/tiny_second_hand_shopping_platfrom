@@ -1,0 +1,1 @@
+DATABASE_URL="postgres://bch_user:bch_password@localhost:5432/bch_marketplace" ./target/release/admin-cli admin

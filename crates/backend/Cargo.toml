@@ -3,6 +3,13 @@ name = "backend"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "backend"
+path = "src/main.rs"
+
+[[bin]]
+name = "admin-cli"
+path = "src/bin/admin-cli.rs"
 [dependencies]
 # Workspace shared
 shared = { workspace = true }

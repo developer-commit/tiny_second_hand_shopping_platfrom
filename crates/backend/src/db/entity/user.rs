@@ -63,6 +63,7 @@ impl TryFrom<Model> for UserProfileRes {
             reliability_index: m.trust_score.try_into().unwrap_or(0.0), // trust_score → reliability_index
             require_otp: m.is_2fa_enabled, // is_2fa_enabled → require_otp
             account_status: m.status,
+            role: m.role,
             joined_at: m.created_at.to_rfc3339(),
         })
     }

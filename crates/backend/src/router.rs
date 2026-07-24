@@ -38,7 +38,13 @@ use axum::{
 pub fn build_router(state: AppState) -> Router {
     // ─── 공개 라우트 (인증 불필요) ────────────────────────────────────────────
     let public_routes = Router::new()
-        .route("/auth/sendcode", post(auth_handler::sendcode))
+        .route(
+            "/auth/sendcode",
+            post(auth_handler::sendcode).layer(middleware::from_fn_with_state(
+                state.clone(),
+                crate::middleware::limit::email_rate_limit_middleware,
+            )),
+        )
         .route("/auth/signup", post(auth_handler::signup))
         .route("/auth/login", post(auth_handler::login))
         .route("/products", get(product_handler::list_products))

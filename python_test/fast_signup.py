@@ -8,6 +8,13 @@ BASE_URL = "http://localhost:8080"
 
 TEST_USERS = [
     {
+        "account_id": "admin",
+        "contact_email": "admin@gmail.com",
+        "contact_phone": None,
+        "secret_key": "22222222",
+        "verification_code": "000000"
+    },
+    {
         "account_id": "test1",
         "contact_email": "shiroi.py1@gmail.com",
         "contact_phone": None,

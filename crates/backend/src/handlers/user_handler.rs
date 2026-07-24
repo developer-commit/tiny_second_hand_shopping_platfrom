@@ -56,6 +56,10 @@ pub async fn update_my_profile(
     axum::Extension(claims): axum::Extension<Claims>,
     Json(req): Json<UpdateProfileReq>,
 ) -> Result<Json<UserProfileRes>, AppError> {
+    use validator::Validate;
+    req.validate()
+        .map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
+
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
     state
         .user_service

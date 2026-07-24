@@ -1917,6 +1917,8 @@ Manual Verification
 Perform a final repository-wide grep -i -E 'bch|bitcoin cash' to ensure absolute eradication of BCH business logic.
 ```
 
+-> 송금 기능 구현 포기
+
 # 18. 타유저 열람 구현
 ```
 Public User Profile Implementation Plan
@@ -1945,3 +1947,151 @@ cargo clippy -p backend -- -D warnings
 Manual Verification
 Will test the flow: Product Detail -> Click Seller -> Profile -> Click Product -> Product Detail.
 ```
+
+# 19. 보안 기능 점검 및 구현
+
+```
+
+---
+
+# 보안 감사 및 구현 계획
+
+**사용자 검토 필요**
+
+아래 보안 감사 결과를 검토해 주세요. 이번 감사에서는 서버 측 검증이 누락된 일부 영역과 웹소켓(WebSocket) 채팅 메시지 인가가 불완전한 부분이 확인되었습니다. 승인해 주시면 지정된 파일에 수정 사항을 적용하겠습니다.
+
+---
+
+## Phase 0: 아키텍처 탐색
+
+### 인증 (Authentication)
+
+* 애플리케이션은 `Authorization` 헤더 또는 `token=` 쿼리 파라미터를 통해 전달되는 JWT 기반 인증(Bearer 토큰)을 사용합니다.
+* 세션은 상태를 유지하지 않는 스테이트리스(Stateless) 방식이며, 수명이 짧습니다 (24시간 만료).
+* 브라우저가 교차 출처(Cross-Origin) 요청에 Bearer 토큰을 자동으로 첨부하지 않으므로, 기존의 CSRF 보호 방식(Anti-CSRF 토큰 등)은 해당 없음(N/A)입니다.
+
+### 비밀번호 보안 (Password Security)
+
+* 데이터베이스에 저장하기 전 Argon2id를 사용해 비밀번호를 올바르게 해시화하고 있습니다 (`crates/backend/src/service/auth_service.rs`).
+* 비밀번호는 로그에 기록되지 않으며, 사용자별로 솔트(Salt)가 안전하게 생성됩니다.
+
+### 세션 / 토큰 보안 (Session / Token Security)
+
+* 토큰에는 만료 시간(`exp`)이 포함되어 있으며, 휴면/정지된 계정은 `authenticate` 미들웨어에서 적극적으로 차단됩니다.
+* 리프레시 토큰이나 세션 무효화는 짧은 만료 시간과 DB 상태 확인에 의존합니다.
+* 앱이 인증에 쿠키를 사용하지 않으므로 쿠키 보안은 해당 없음(N/A)입니다.
+
+### 인가 (Authorization)
+
+* 커스텀 `authenticate` 미들웨어가 JWT 클레임을 파싱하여 요청 확장(request extensions)에 주입합니다.
+* 리소스 소유권은 백엔드에서 엄격하게 검증됩니다 (예: `product_service.update_product`에서 `seller_id`를 DB 레코드와 비교 확인).
+* Admin 라우트에 대해서는 `require_admin` 미들웨어를 통한 역할 기반 접근 제어(RBAC)가 적용되어 있습니다.
+
+### 웹소켓 (WebSocket)
+
+* 웹소켓은 Rust 애플리케이션의 `/v1/chat/ws` 엔드포인트에서 직접 노출됩니다.
+* 연결 업그레이드 시 `token` 쿼리 파라미터를 사용하여 인증을 수행합니다.
+* 인스턴스 간 채팅 메시지를 확장(Scale)하기 위해 Redis Pub/Sub을 사용합니다.
+* Rust 라우터에 TLS 설정이 없으므로, WSS(TLS 종단)는 리버스 프록시(예: Nginx, Cloudflare)에서 처리하는 것으로 전제합니다.
+
+### 신고 기능 (Reporting)
+
+* `report_handler` 및 `report_service`에서 처리합니다.
+* 사유(cause) 길이를 검증합니다.
+* DB 쿼리 및 트랜잭션을 사용해 중복 신고 및 본인 신고를 방지합니다.
+* 신고 임계값을 기반으로 한 자동 제재(휴면/차단) 기능이 포함되어 있습니다.
+
+### 오류 처리 (Error Handling)
+
+* `AppError`는 내부 오류를 일반적인 HTTP 응답(예: `Internal`, `BadRequest`)으로 안전하게 매핑하여 스택 트레이스나 SQL 쿼리가 유출되지 않도록 합니다.
+* 상세 오류는 `tracing::error!`를 사용하여 안전하게 로그로 남깁니다.
+
+---
+
+## Phase 1: 사용자 보안 감사
+
+| 통제 항목 | 상태 | 증거 | 조치 사항 |
+| --- | --- | --- | --- |
+| **서버 측 검증** | **미흡 (PARTIAL)** | `user_handler.rs`: `update_my_profile`에 `req.validate()` 누락 | `update_my_profile` 핸들러에 `req.validate()` 추가 |
+| **XSS 보호** | **해당 없음 (N/A)** | JSON API (HTML을 반환하지 않음) | 프론트엔드의 안전한 렌더링으로 처리됨 |
+| **CSRF** | **해당 없음 (N/A)** | 쿠키가 아닌 Bearer 토큰 사용 | 없음 |
+| **비밀번호 해싱** | **통과 (PASS)** | `auth_service.rs:122` (Argon2) | 없음 |
+| **쿠키 보안** | **해당 없음 (N/A)** | 쿠키 사용 안 함 | 없음 |
+| **세션 만료** | **통과 (PASS)** | `auth_service.rs:230` (1일 만료) | 없음 |
+| **로그인 실패 보호** | **미흡 (PARTIAL)** | `auth_handler.rs:login`에 최대 5회 제한이 구현되어 있으나, `router.rs`에서 `/auth/sendcode`에 대한 `email_rate_limit_middleware`가 누락됨 | `/auth/sendcode`에 속도 제한(Rate Limit) 미들웨어 추가 |
+| **오류 처리** | **통과 (PASS)** | `AppError` 매핑 | 없음 |
+
+---
+
+## Phase 2: 상품 보안 감사
+
+| 통제 항목 | 상태 | 증거 | 조치 사항 |
+| --- | --- | --- | --- |
+| **서버 측 검증** | **통과 (PASS)** | `product_handler.rs`에서 생성 및 수정 시 `req.validate()` 호출 | 없음 |
+| **XSS 보호** | **해당 없음 (N/A)** | JSON API | 없음 |
+| **인증** | **통과 (PASS)** | `router.rs`에서 `/products` (POST/PUT/PATCH)를 `authenticate`로 보호 | 없음 |
+| **소유권 인가** | **통과 (PASS)** | `product_service.rs`에서 `p.seller_id != seller_id` 검증 | 없음 |
+| **데이터 무결성** | **통과 (PASS)** | `create_product`에서 트랜잭션 사용 | 없음 |
+
+---
+
+## Phase 3: 채팅 보안 감사
+
+| 통제 항목 | 상태 | 증거 | 조치 사항 |
+| --- | --- | --- | --- |
+| **메시지 본문 검증** | **취약 (FAIL)** | `chat_handler.rs`: `send_message`에 `req.validate()` 누락 | 핸들러에 `req.validate()` 추가 |
+| **웹소켓 인증** | **통과 (PASS)** | `chat_handler.rs`: `handle_socket`에서 `claims.sub` 사용 | 없음 |
+| **메시지 인가** | **취약 (FAIL)** | `chat_service.rs`: `send_message`에서 발신자가 해당 채팅방에 속해 있는지 검증하지 않음 | `chat_service.rs`에 참여자 검증 로직 추가 |
+| **메시지 검증** | **통과 (PASS)** | `sender_uid`를 JWT 클레임에서 안전하게 가져옴 | 없음 |
+| **속도 제한 (Rate Limiting)** | **해당 없음 (N/A)** | 표준 애플리케이션 레이어 | 없음 |
+| **WSS / TLS** | **해당 없음 (N/A)** | 리버스 프록시를 통하는 것으로 전제 | 없음 |
+
+---
+
+## Phase 4: 신고 기능 보안 감사
+
+| 통제 항목 | 상태 | 증거 | 조치 사항 |
+| --- | --- | --- | --- |
+| **입력값 검증** | **통과 (PASS)** | `report_handler.rs`에서 `req.validate()` 사용 | 없음 |
+| **인증** | **통과 (PASS)** | `router.rs`에서 `/reports` 보호 | 없음 |
+| **데이터 무결성** | **통과 (PASS)** | 트랜잭션 사용, 본인/중복 신고 방지 | 없음 |
+| **감사 로깅** | **미흡 (PARTIAL)** | DB 로그 존재함 | 없음 |
+| **남용 방지** | **통과 (PASS)** | `report_service.rs`: `apply_auto_moderation` 구현 | 없음 |
+
+---
+
+## 수정 제안 사항
+
+* `crates/backend/src/handlers/user_handler.rs`
+* **[수정]** `update_my_profile`에 누락된 `use validator::Validate;` 및 `req.validate().map_err(...)` 추가.
+
+
+* `crates/backend/src/handlers/chat_handler.rs`
+* **[수정]** `send_message`에 누락된 `use validator::Validate;` 및 `req.validate().map_err(...)` 추가.
+
+
+* `crates/backend/src/handlers/escrow_handler.rs`
+* **[수정]** `initiate_escrow` 및 `dispute_escrow`에 누락된 `use validator::Validate;` 및 `req.validate().map_err(...)` 추가.
+
+
+* `crates/backend/src/service/chat_service.rs`
+* **[수정]** 메시지를 데이터베이스에 삽입하기 전에 `sender_id`가 `room_id`의 활성 참여자인지 검증하도록 `send_message` 업데이트.
+
+
+* `crates/backend/src/router.rs`
+* **[수정]** 이메일/SMS 인증 무차별 대입(Brute-force) 공격을 방지하기 위해 `/auth/sendcode` 라우트를 `crates::middleware::limit::email_rate_limit_middleware`로 감싸기.
+
+
+
+---
+
+## 검증 계획
+
+### 자동화 테스트
+
+* 코드가 정상적으로 컴파일되는지 확인하기 위해 `cargo check` 및 `cargo clippy` 실행.
+* 보안 리그레션 테스트를 통과하는지 확인하기 위해 `cargo test` 실행.
+```
+
+# 20. 어드민 기능 점검
+어드민 권한 주기만 추가함

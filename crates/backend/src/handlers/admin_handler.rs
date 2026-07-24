@@ -24,7 +24,7 @@ pub async fn get_platform_stats(
     }
 }
 
-/// POST /v1/admin/escrow/:trade_uid/force-settle (관리자 전용)
+/// POST /v1/admin/escrow/force-settle (관리자 전용)
 pub async fn force_settle(
     State(state): State<AppState>,
     axum::Extension(claims): axum::Extension<Claims>,

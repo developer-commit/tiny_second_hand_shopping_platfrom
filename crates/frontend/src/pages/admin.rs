@@ -104,7 +104,7 @@ pub fn AdminPage() -> impl IntoView {
         let is_admin = auth_store
             .current_user
             .get()
-            .map(|u| u.account_status == "admin")
+            .map(|u| u.role == "admin")
             .unwrap_or(false);
         if !is_admin {
             navigate("/", Default::default());

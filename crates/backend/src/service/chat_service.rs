@@ -160,11 +160,23 @@ impl ChatServiceTrait for ChatService {
         sender_id: i64,
         req: SendMessageReq,
     ) -> Result<ChatMessagePayload, ChatServiceError> {
-        use crate::db::entity::chat_message;
+        use crate::db::entity::{chat_message, chat_participant};
         use crate::utils::security::{deobfuscate, obfuscate};
-        use sea_orm::{ActiveModelTrait, Set};
+        use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
         let room_id = deobfuscate(&req.room_uid).map_err(|_| ChatServiceError::RoomNotFound)?;
+
+        // Verify sender is a participant in this room
+        let all_participants = chat_participant::Entity::find()
+            .filter(chat_participant::Column::RoomId.eq(room_id))
+            .all(&self.db)
+            .await
+            .unwrap_or_default();
+
+        let is_participant = all_participants.iter().any(|p| p.user_id == sender_id);
+        if !is_participant {
+            return Err(ChatServiceError::Forbidden);
+        }
 
         let msg = chat_message::ActiveModel {
             room_id: Set(room_id),
@@ -191,14 +203,6 @@ impl ChatServiceTrait for ChatService {
 
         if let Ok(payload_json) = serde_json::to_string(&payload) {
             // Fetch all participants to publish to their individual channels
-            use crate::db::entity::chat_participant;
-            use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
-            let all_participants = chat_participant::Entity::find()
-                .filter(chat_participant::Column::RoomId.eq(room_id))
-                .all(&self.db)
-                .await
-                .unwrap_or_default();
 
             for p in all_participants {
                 let channel = format!("user_{}", p.user_id);
