@@ -3,8 +3,11 @@
 
 use leptos::prelude::*;
 use shared::dto::noti_dto::NotificationRes;
+use gloo_net::http::Request;
 
-#[derive(Clone, Debug)]
+const API_BASE_URL: &str = "/v1";
+
+#[derive(Clone, Copy, Debug)]
 pub struct NotificationStore {
     pub unread_count: RwSignal<usize>,
     pub notifications: RwSignal<Vec<NotificationRes>>,
@@ -40,4 +43,46 @@ impl NotificationStore {
             }
         });
     }
+
+    pub fn set_notifications(&self, notis: Vec<NotificationRes>) {
+        let unread = notis.iter().filter(|n| !n.is_read).count();
+        self.notifications.set(notis);
+        self.unread_count.set(unread);
+    }
+}
+
+/// GET /notifications - 알림 목록 조회
+pub async fn fetch_notifications(token: &str) -> Result<Vec<NotificationRes>, String> {
+    let url = format!("{}/notifications", API_BASE_URL);
+    let res = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !res.ok() {
+        let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
+        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        return Err(err_msg);
+    }
+
+    res.json().await.map_err(|e| e.to_string())
+}
+
+/// PATCH /notifications/{noti_uid}/read - 알림 읽음 처리 API
+pub async fn mark_notification_read(token: &str, noti_uid: &str) -> Result<(), String> {
+    let url = format!("{}/notifications/{}/read", API_BASE_URL, noti_uid);
+    let res = Request::patch(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !res.ok() {
+        let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
+        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        return Err(err_msg);
+    }
+
+    Ok(())
 }

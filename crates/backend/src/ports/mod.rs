@@ -6,3 +6,4 @@ pub mod wallet_port;
 pub mod bch_network_port;
 pub mod pubsub_port;
 pub mod notification_port;
+pub mod verification_port;

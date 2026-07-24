@@ -18,6 +18,9 @@ impl RedisPubSubAdapter {
 #[async_trait]
 impl PubSubPort for RedisPubSubAdapter {
     async fn publish(&self, channel: &str, message: &str) -> Result<(), PubSubError> {
-        todo!("self.conn.publish(channel, message).await → PubSubError 매핑")
+        let mut conn = self.conn.clone();
+        let _: () = conn.publish(channel, message).await
+            .map_err(|e| PubSubError::PublishFailed(e.to_string()))?;
+        Ok(())
     }
 }

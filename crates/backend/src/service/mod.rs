@@ -12,3 +12,10 @@ pub mod review_service;
 pub mod report_service;
 pub mod admin_service;
 pub mod notification_service;
+pub mod traits;
+
+pub mod eth_escrow_service;
+pub mod escrow_dispatcher;
+
+#[cfg(test)]
+pub mod tests;

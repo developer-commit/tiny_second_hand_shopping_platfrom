@@ -9,3 +9,4 @@ pub mod review_handler;
 pub mod report_handler;
 pub mod admin_handler;
 pub mod notification_handler;
+pub mod upload_handler;

@@ -8,11 +8,13 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 use crate::types::OpaqueId;
+use super::common_dto::Currency;
 
 /// 에스크로 진행 단계를 Enum으로 타입화하여 유효하지 않은 상태 전달 차단
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TradeStep {
+    PendingDeposit, // DB: "pending_deposit" — 예치 대기 중 (클라이언트 트랜잭션 필요)
     Deposited,  // DB: "deposited" — 대금 예치
     Received,   // DB: "received" — 구매자 수령 승인
     Disputed,   // DB: "disputed" — 분쟁 발생
@@ -33,6 +35,7 @@ pub struct DisputeEscrowReq {
     pub cause: String,               // DB: dispute_reason
 }
 
+
 /// [Response] 에스크로 거래 상태
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SafeTradeStatusRes {
@@ -40,7 +43,8 @@ pub struct SafeTradeStatusRes {
     pub item_uid: OpaqueId,          // DB: product_id (난독화)
     pub buyer_uid: OpaqueId,         // DB: buyer_id (난독화)
     pub seller_uid: OpaqueId,        // DB: seller_id (난독화)
-    pub locked_funds: f64,           // DB: amount
+    pub currency: Currency,          // DB: currency
+    pub locked_funds: String,        // DB: amount (String for U256 support)
     pub step: TradeStep,             // DB: status
     pub auto_finalize_deadline: Option<String>, // DB: auto_confirm_at
     pub created_at: String,

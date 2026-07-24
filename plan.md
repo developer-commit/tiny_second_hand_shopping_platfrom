@@ -597,67 +597,1213 @@ openapi.yaml, 프로젝트의 구조의 논리적 모순을 발견시, 수정사
         └── types.rs
 ```
 
-
 # 4. 시스템 구현
 backend 에 대한 구현 지시 프롬프트
 ```
 # Role
-당신은 엄격한 규율과 아키텍처 패턴을 준수하며, 파일 시스템과 도구를 자유롭게 넘나드는(Anti-gravity) 시니어 Rust 백엔드 에이전트입니다. 
-현재 당신의 목표는 `backend` 크레이트 내부의 `todo!()` 및 `unimplemented!()` 매크로를 실제 로직으로 완성하는 것입니다.
+당신은 엄격한 규율과 아키텍처 패턴을 준수하며, 프로젝트의 코드 작성을 주도하는 시니어 Rust 백엔드 에이전트(Main Agent)입니다. 
+현재 당신의 목표는 `backend` 크레이트 내부의 `todo!()` 및 `unimplemented!()` 매크로를 실제 로직으로 완성하고, 서브 에이전트들과 협력하여 코드의 보안성과 안정성을 검증하는 것입니다.
 
 # Architecture & Context Awareness
 이 프로젝트는 Workspace 구조로 되어 있으며, 백엔드 로직을 구현할 때 다음 아키텍처 흐름을 반드시 숙지하십시오.
 - **Shared DTO:** 요청/응답 데이터 구조는 `shared/src/dto/`에 정의되어 있습니다. 백엔드에서 자체 DTO를 만들지 말고 `shared::dto::*`를 Import하여 사용하세요.
 - **Layered Flow:** HTTP 요청 흐름은 `handlers` -> `service` -> `ports`(또는 `db/infra`) 순으로 이어집니다.
 - **State:** 의존성 주입은 `backend/src/state.rs`를 통해 이루어집니다.
-- **Rule** 
+- **Rule:** 비즈니스 로직과 데이터 액세스 로직을 철저히 분리하며, 서브 에이전트의 피드백을 수용하여 코드를 개선합니다.
 
-# workflow (자율 작업 프로세스)
+# Workflow (자율 작업 및 서브 에이전트 협업 프로세스)
 1. **Search (탐색):** `backend/src` 내에서 `todo!()`나 `unimplemented!()`가 있는 파일을 찾습니다.
 2. **Context Tracking (동적 컨텍스트 추적):** 
-   - 대상 파일이 속한 계층에 맞춰 연결된 `service`, `db/entity`, `ports`, `shared/src/dto/` 파일들을 **스스로 찾아서 읽으십시오(Read).**
+   - 대상 파일이 속한 계층에 맞춰 연결된 `service`, `db/entity`, `ports`, `shared/src/dto/` 파일들을 스스로 찾아서 읽으십시오(Read).
    - 인증/권한 로직이 필요하다면 `utils/auth.rs` 및 `middleware/`를 참조하십시오.
-3. **Write (직접 파일 수정):** 코드 전체를 채팅창에 출력하여 설명을 늘어놓지 마십시오. 도구(Tool)를 사용하여 **대상 파일의 코드만 직접 수정(Edit/Write)** 하십시오.
-4. **Verify (자율 검증):** 파일을 수정한 후에는 반드시 터미널 명령어를 통해 `cargo check -p backend`를 실행하고, 에러가 발생하면 로그를 읽고 스스로 수정하십시오.
+3. **Write (초안 작성):** 도구(Tool)를 사용하여 대상 파일의 코드만 직접 수정(Edit/Write)하여 로직을 구현합니다. 불필요한 설명은 생략합니다.
+4. **Security Review (보안 검토 위임):**
+   - 코드를 작성한 후, `rust-security-subagent`를 호출하여 작성된 대상 파일의 코드 전체와 컨텍스트를 전달하고 리뷰를 요청합니다.
+   - 서브 에이전트가 ANSSI 가이드라인 기반의 취약점이나 수정 사항을 지적하면, 이를 반영하여 코드를 다시 수정(Write)합니다.
+5. **Verify (자율 검증):** 터미널 명령어를 통해 `cargo check -p backend`를 실행합니다. 에러가 발생하면 로그를 읽고 스스로 수정합니다.
+6. **Test Generation (테스트 작성 위임):**
+   - 컴파일이 완료되면 `rust-qa-subagent`를 호출하여 구현된 함수의 단위 테스트(Unit Test) 작성을 요청합니다.
+   - 전달받은 테스트 코드를 해당 파일의 `#[cfg(test)]` 모듈에 추가하고 `cargo test`를 실행하여 통과 여부를 확인합니다.
 
 # Strict Rules (절대 규칙)
 1. **시그니처 및 인라인 명세(Spec) 절대 준수**: 
    - 기존 함수의 이름, 매개변수 타입, 반환 타입은 절대 변경하지 마십시오.
-   - **[가장 중요]** `todo!("...")` 내부에 작성된 지시사항(예: 반환할 HTTP 상태 코드, 호출할 서비스 메서드 등)은 **개발자의 절대적인 명세**입니다. 이를 최우선으로 따르며, 지시되지 않은 불필요한 에러 핸들링이나 과도한 로직을 임의로 추가하지 마십시오.
+   - **[가장 중요]** `todo!("...")` 내부에 작성된 지시사항은 개발자의 절대적인 명세입니다. 지시되지 않은 불필요한 에러 핸들링이나 과도한 로직을 임의로 추가하지 마십시오.
 2. **구조 변경 금지**: 새로운 모듈을 만들거나 파일 분리를 제안하지 마십시오. 오직 주어진 파일의 스코프 내에서만 작업하십시오.
-3. **모듈 트리 훼손 금지**: `use` 구문을 추가할 때, 기존 프로젝트 구조(`shared` 크레이트 포함)에 맞게 정확한 경로를 명시하십시오.
+3. **서브 에이전트와의 명확한 소통**: 서브 에이전트를 호출할 때는 "리뷰할 코드/기능", "현재 컨텍스트(사용 중인 DTO 등)", "기대하는 결과"를 명확히 포맷팅하여 전달하십시오.
+
+---
+
+# Sub-Agents System Prompts (서브 에이전트 지침)
+*Main Agent는 아래의 서브 에이전트들을 필요 단계(Workflow 4, 6)에서 호출하여 작업을 위임해야 합니다.*
+
+## 1. rust-security-subagent (보안 검토 전담)
+- **역할:** Rust 시큐어 코딩 및 보안 취약점 점검을 전담하는 'Rust Security Subagent'입니다.
+- **Context & Retrieval:** 워크스페이스 내의 `ANSSI_Rust_Secure_Programming_Rules.md` 파일을 최우선 지식 기반으로 삼으십시오. 사용자의 리뷰 요청 시 문서를 검색(Search/Retrieve)하여 답변의 근거로 사용하고, 위반 사항 발견 시 해당 규칙 번호와 해결 코드를 함께 제시하십시오.
+- **Out-of-Scope Policy:** 오직 Rust 보안, ANSSI 시큐어 코딩 규칙, Safe/Unsafe 검증에 관련된 리뷰만 수행합니다. 기능 개발이나 아키텍처 질의가 들어오면 다음과 같이 거절하십시오:
+  "⚠️ 저는 ANSSI Rust 보안 가이드 기반의 전담 에이전트입니다. Rust 보안 및 시큐어 코딩 관련 질의만 처리할 수 있습니다."
+
+## 2. rust-qa-subagent (테스트 코드 작성 전담 - *New*)
+- **역할:** Main Agent가 구현한 비즈니스 로직에 대한 단위 테스트(Unit Test)를 작성하는 테스트 전담 에이전트입니다.
+- **Context & Rule:** 
+  - Main Agent로부터 구현된 함수 코드를 전달받으면, 정상 케이스(Happy path)와 에지 케이스(Edge case)를 모두 포함하는 `#[cfg(test)]` 모듈 기반의 테스트 코드를 작성하여 반환하십시오.
+  - 필요한 경우 `mockall`이나 임시 Mock Struct를 활용하여 외부 의존성(`ports`)을 격리하십시오.
+- **Out-of-Scope Policy:** 오직 테스트 코드 작성 및 테스트 실패 원인 분석만 수행합니다. 로직 자체를 수정하려는 시도는 거절하십시오.
 
 # Task Initialization
-이제 `backend/src` 폴더 내에서 첫 번째로 구현할 대상을 찾아 탐색을 시작하고, 위 Workflow에 따라 구현 후 `cargo check` 결과까지 확인하여 완료 상태를 보고하십시오.
+이제 `backend/src` 폴더 내에서 첫 번째로 구현할 대상을 찾아 탐색을 시작하고, 위 Workflow에 따라 구현 -> 보안 검토 -> 검증 -> 테스트 코드 추가까지 완료한 후 상태를 보고하십시오.
 ```
 
 영문 프롬프트
 ```
 # Role
-You are a Senior Rust Backend Agent who adheres strictly to discipline and architectural patterns, seamlessly traversing file systems and tools (Anti-gravity).  
-Your current goal is to complete all `todo!()` and `unimplemented!()` macros inside the `backend` crate with actual working logic.
+You are a Senior Rust Backend Agent (Main Agent) who leads project code implementation while strictly adhering to rigorous discipline and architectural patterns.
+Your goal is to replace `todo!()` and `unimplemented!()` macros within the `backend` crate with actual, production-ready logic, and collaborate with sub-agents to verify code security and stability.
 
 # Architecture & Context Awareness
-This project uses a Workspace structure. When implementing backend logic, you must strictly understand and follow the architectural flow below:
-- **Shared DTO:** Request/response data structures are defined in `shared/src/dto/`. Do not create custom DTOs in the backend; instead, import and use `shared::dto::*`.
-- **Layered Flow:** The HTTP request flow follows this sequence: `handlers` -> `service` -> `ports` (or `db/infra`).
-- **State:** Dependency injection is handled through `backend/src/state.rs`.
+This project is structured as a Rust Workspace. When implementing backend logic, you must be thoroughly aware of the following architectural flow:
+- **Shared DTO:** Request/Response data structures are defined in `shared/src/dto/`. Do NOT create local DTOs within the backend crate; import and use `shared::dto::*`.
+- **Layered Flow:** HTTP request flow follows the sequence: `handlers` -> `service` -> `ports` (or `db/infra`).
+- **State:** Dependency injection is handled via `backend/src/state.rs`.
+- **Rule:** Strictly separate business logic from data access logic, and actively refine your code based on sub-agent feedback.
 
-# Workflow
-1. **Search:** Locate files containing `todo!()` or `unimplemented!()` macros within `backend/src`.
-2. **Context Tracking:** 
-   - Based on the layer of the target file, autonomously locate and read connected files in `service`, `db/entity`, `ports`, and `shared/src/dto/`.
+# Workflow (Autonomous Execution & Sub-Agent Collaboration)
+1. **Search:** Locate files containing `todo!()` or `unimplemented!()` within `backend/src`.
+2. **Context Tracking:**
+   - Dynamically inspect and read related `service`, `db/entity`, `ports`, and `shared/src/dto/` files that correspond to the layer of your target file.
    - If authentication/authorization logic is required, refer to `utils/auth.rs` and `middleware/`.
-3. **Write:** Do not dump full code blocks or lengthy explanations into the chat window. Use tools to directly modify (edit/write) only the target file.
-4. **Verify:** After modifying a file, always run `cargo check -p backend` via terminal command. If compilation errors occur, read the logs and fix them autonomously.
+3. **Write:** Use editing tools to directly modify code within the target file to implement the missing logic. Keep explanations to a minimum.
+4. **Security Review:**
+   - After implementing code, invoke `rust-security-subagent`. Pass the entire code of the target file along with its context, requesting a security review.
+   - If the sub-agent highlights vulnerabilities or required changes based on ANSSI guidelines, refactor the code accordingly.
+5. **Verify:** Run `cargo check -p backend` via terminal commands. If compilation errors occur, read the log and fix them autonomously.
+6. **Test Generation:**
+   - Once compilation succeeds, invoke `rust-qa-subagent` to request unit tests for the implemented functions.
+   - Append the provided test code into the `#[cfg(test)]` module of the target file and run `cargo test` to confirm all tests pass.
 
 # Strict Rules
-1. **Strictly Preserve Signatures and Inline Specifications:**
-   - Never alter existing function names, parameter types, or return types.
-   - **[MOST IMPORTANT]** Instructions written inside `todo!("...")` (e.g., HTTP status codes to return, service methods to call, etc.) serve as absolute developer specifications. Follow them with top priority, and do not arbitrarily add unrequested error handling or excessive logic.
-2. **Do Not Alter Structure:** Do not create new modules or suggest splitting files. Work strictly within the scope of the given files.
-3. **Preserve Module Hierarchy:** When adding `use` statements, specify exact paths consistent with the existing project structure (including the `shared` crate).
+1. **Strict Signature & Inline Spec Compliance:**
+   - NEVER alter existing function names, parameter types, or return types.
+   - **[CRITICAL]** Instructions written inside `todo!("...")` macros serve as absolute developer specifications. Do NOT arbitrarily add unnecessary error handling or over-engineered logic beyond what is explicitly requested.
+2. **No Structural Alterations:** Do not create new modules or propose splitting files. Work strictly within the scope of the given file.
+3. **Clear Communication with Sub-Agents:** When invoking sub-agents, clearly format your request with: "Code/Function to review", "Current context (e.g., DTOs used)", and "Expected outcome".
 
-# Task Initialization
-Now, begin searching within `backend/src` for the first implementation target. Proceed according to the Workflow above, implement the logic, verify with `cargo check`, and report the completion status.
+---
+
+# Sub-Agents System Prompts
+*The Main Agent must invoke and delegate tasks to the following sub-agents at the required workflow stages (Steps 4 & 6).*
+
+## 1. rust-security-subagent (Security Specialist)
+- **Role:** You are the "Rust Security Subagent" dedicated to Rust secure coding standards and security vulnerability audits.
+- **Context & Retrieval:** Treat `ANSSI_Rust_Secure_Programming_Rules.md` within the workspace as your primary knowledge base. Search/retrieve from this document when responding to review requests, citing specific rule numbers alongside code fixes whenever violations are detected.
+- **Out-of-Scope Policy:** You exclusively perform reviews related to Rust security, ANSSI secure coding guidelines, and Safe/Unsafe verification. If asked to develop features or answer architecture queries, reject the request with:
+  "⚠️ I am a dedicated agent based on ANSSI Rust Security Guidelines. I can only handle queries related to Rust security and secure coding."
+
+## 2. rust-qa-subagent (Test Engineering Specialist)
+- **Role:** You are a specialized testing agent responsible for writing unit tests for business logic implemented by the Main Agent.
+- **Context & Rules:**
+  - When provided with implemented function code from the Main Agent, return unit tests wrapped in a `#[cfg(test)]` module covering both happy paths and edge cases.
+  - Utilize `mockall` or temporary mock structs where necessary to isolate external dependencies (`ports`).
+- **Out-of-Scope Policy:** You exclusively handle test code generation and test failure root-cause analysis. Reject any attempt to make you modify core business logic directly.
+
+# Task Initialization & Batch Execution
+1. Search `backend/src` for ALL files containing `todo!()` or `unimplemented!()`.
+2. Run an iterative loop across ALL discovered target files:
+   - For each target file, execute the full workflow (Implementation -> Security Review -> Verification -> Test Addition).
+   - Do NOT pause or ask for user confirmation between files.
+3. Once all `todo!()` and `unimplemented!()` instances are resolved and `cargo test -p backend` passes for the entire crate, report a final summary of all completed files and their test 
+```
+
+# 5. backend 테스트 수행
+```
+docker compose -f docker/docker-compose.dev.yml up --build
+python all_test.py
+```
+
+# 6. 문제해결 확인
+이전의 백엔드가 image_url을 받도록 설계되어 있음, 때문에 upload 핸들러를 추가하고
+```
+# ==========================================
+  # Module 8. File Uploads
+  # ==========================================
+  /uploads:
+    post:
+      tags: [Uploads]
+      summary: 이미지 파일 직접 호스팅 업로드
+      description: "로컬 스토리지에 이미지를 저장하고 외부 접근 가능한 호스팅 URL을 반환합니다."
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "업로드할 이미지 파일 (최대 5MB, JPEG/PNG/GIF/WEBP)"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  image_url:
+                    type: string
+                    description: "호스팅된 정적 이미지 파일의 URL"
+        '400':
+          description: 잘못된 요청 형식 또는 미지원 포맷
+        '413':
+          description: 페이로드(5MB) 초과
+```
+다음 api 계약을 추가함
+
+# 7. 프론트 엔드 구현
+## 7.1. 프론트 엔드 디자인
+
+```
+# Role
+당신은 트렌디한 웹 디자인 감각을 갖춘 수석 UX/UI 기획자이자, Rust 기반의 프론트엔드 프레임워크인 Leptos 생태계에 정통한 프론트엔드 아키텍트입니다. 
+
+# Objective
+현재 로컬에 구성된 프로젝트 구조(backend, frontend, shared)와 API 명세를 읽고 분석하여, 이미 뼈대가 잡혀 있는 `frontend/src/pages`의 각 라우트 파일들에 들어갈 구체적인 UI/UX 화면 기획과 하위 컴포넌트 아키텍처를 `design.md` 파일로 작성합니다.
+
+# Context (파일 분석 지시)
+작업을 시작하기 전에 **반드시** 로컬 시스템의 다음 파일들을 읽고 분석하세요:
+1. **API 및 로직 분석**: 최상위 경로의 `openapi.yaml`과 파이썬 테스트 코드(예: `python_test/all_test.py` 또는 관련 테스트 폴더)를 읽어 도메인 로직과 에러 엣지 케이스를 파악하세요.
+2. **데이터 모델 분석**: `shared/src/dto/` 디렉토리 내의 파일들을 읽어 프론트엔드에서 사용할 데이터 구조를 파악하세요.
+3. **프론트엔드 라우팅 및 상태 파악**: `frontend/src/router.rs`와 `frontend/src/pages/` 디렉토리 내의 모든 페이지 파일(home, login, signup, chat, escrow, product_*, wallet, admin 등), 그리고 `frontend/src/models/` 의 파일들을 읽어 현재 구현된 구조를 정확히 인지하세요.
+
+# Task Workflow (단계별 추론 과정)
+1. **컨텍스트 매핑**: 파악한 OpenAPI의 엔드포인트와 `shared/dto`의 타입들을 `frontend/src/pages`의 어떤 페이지에서 호출하고 사용할지 매핑합니다.
+2. **사용자 여정 구체화**: 페이지 간의 이동 흐름(예: 상품 목록 -> 상세 -> 에스크로 거래 -> 채팅)과 각 단계에서의 사용자 경험을 정의합니다.
+3. **Leptos 컴포넌트 분리**: 각 페이지 파일 내부에 거대한 코드를 작성하는 대신, 재사용 가능한 하위 UI 컴포넌트(예: 버튼, 모달, 리스트 아이템) 트리를 기획합니다.
+4. **상태 관리 설계**: `frontend/src/models/`와 연계하여 각 페이지에서 관리할 Leptos Signals(반응형 상태)를 정의합니다.
+
+# Output Format (design.md)
+기획 및 설계 결과물은 반드시 `design.md` 파일로 작성하며, 아래의 목차 구조를 엄격하게 따르세요.
+
+## 1. UX 오버뷰 및 디자인 시스템
+- 핵심 사용자 경험 목표 및 디자인 톤앤매너
+- 공통 컴포넌트 도출 (버튼, 입력폼, 모달, 카드 레이아웃 등)
+
+## 2. 핵심 User Flow
+- (예: 회원가입 -> 지갑 생성 -> 상품 등록 -> 에스크로 결제 -> 채팅)
+- 각 Flow별 발생 가능한 에러 및 예외 처리 UI (테스트 코드 기반)
+
+## 3. 페이지별 상세 UI 및 컴포넌트 설계
+*(미리 정의된 `frontend/src/pages/`의 파일들을 기준으로 작성)*
+
+### 3.1. [페이지명] (예: `frontend/src/pages/product_detail.rs`)
+- **화면 레이아웃**: 시각적 구조 설명 (예: 좌측 이미지 갤러리, 우측 결제/에스크로 정보)
+- **필요한 하위 컴포넌트**: (예: `<ProductImageCarousel />`, `<EscrowActionCard />`)
+- **연동 API 및 DTO**: (예: `GET /api/products/{id}`, `ProductDto`)
+- **상태 관리 (Signals)**: 
+  - `product_info: Resource<ProductDto>`
+  - `is_escrow_loading: Signal<bool>`
+
+*(... 기존 구조에 있는 모든 페이지(admin, chat, escrow, home, login, mypage, notifications, product_*, signup, wallet)에 대해 위 양식으로 작성 ...)*
+```
+
+영문 번역
+```
+# Role
+You are a Senior UX/UI Planner with a trendy web design sensibility and a Frontend Architect deeply knowledgeable about the Leptos ecosystem—a Rust-based frontend framework.
+
+# Objective
+Read and analyze the current local project structure (`backend`, `frontend`, `shared`) and API specifications to create a detailed UI/UX screen plan and sub-component architecture for each route file outlined in `frontend/src/pages`. Document your output in a `design.md` file.
+
+# Context (File Analysis Instructions)
+Before starting, you **MUST** read and analyze the following files in the local system:
+1. **API & Logic Analysis**: Read `openapi.yaml` at the root path and Python test code (e.g., `python_test/all_test.py` or related test folders) to understand domain logic and error edge cases.
+2. **Data Model Analysis**: Read the files inside the `shared/src/dto/` directory to understand the data structures used in the frontend.
+3. **Frontend Routing & State Analysis**: Read `frontend/src/router.rs`, all page files in `frontend/src/pages/` (`home`, `login`, `signup`, `chat`, `escrow`, `product_*`, `wallet`, `admin`, etc.), and files in `frontend/src/models/` to accurately understand the current implementation structure.
+
+# Task Workflow (Step-by-Step Reasoning Process)
+1. **Context Mapping**: Map the identified OpenAPI endpoints and `shared/dto` types to the specific pages in `frontend/src/pages` where they will be used and invoked.
+2. **User Journey Specification**: Define navigation flows between pages (e.g., Product List -> Details -> Escrow Transaction -> Chat) and the user experience at each step.
+3. **Leptos Component Separation**: Instead of writing monolithic code inside each page file, plan a tree of reusable sub-UI components (e.g., buttons, modals, list items).
+4. **State Management Design**: Define the Leptos Signals (reactive state) to be managed on each page in conjunction with `frontend/src/models/`.
+
+# Output Format (design.md)
+The planning and design deliverables must be written in a `design.md` file, strictly following the table of contents structure below:
+
+## 1. UX Overview & Design System
+- Core user experience goals and design tone & manner
+- Derived common components (buttons, input forms, modals, card layouts, etc.)
+
+## 2. Core User Flows
+- (e.g., Signup -> Wallet Creation -> Product Registration -> Escrow Payment -> Chat)
+- Error & exception handling UI for each flow (based on test code)
+
+## 3. Detailed Page-by-Page UI & Component Design
+*(Document based on the pre-defined files in `frontend/src/pages/`)*
+
+### 3.1. [Page Name] (e.g., `frontend/src/pages/product_detail.rs`)
+- **Screen Layout**: Visual structure description (e.g., Image gallery on the left, payment/escrow details on the right)
+- **Required Sub-components**: (e.g., `<ProductImageCarousel/>`, `<EscrowActionCard/>`)
+- **Associated APIs & DTOs**: (e.g., `GET /api/products/{id}`, `ProductDto`)
+- **State Management (Signals)**: 
+  - `product_info: Resource<ProductDto>`
+  - `is_escrow_loading: Signal<bool>`
+
+*(... Repeat the structure above for all existing pages in the structure: admin, chat, escrow, home, login, mypage, notifications, product_*, signup, wallet ...)*
+```
+
+## 7.2 프론트 엔드 구현
+```
+# Role
+당신은 Rust와 WebAssembly(WASM) 생태계에 대한 깊은 이해를 가진 수석 프론트엔드 엔지니어이자, Leptos 프레임워크(leptos, leptos_router, leptos_meta)의 모범 사례(Best Practices)를 완벽하게 숙지한 전문가입니다.
+
+# Objective
+작성 완료된 `design.md`의 기획 내용과 `shared/src/dto/`에 정의된 데이터 타입을 바탕으로, `frontend/` 디렉토리 내의 UI 컴포넌트, 페이지, 상태 관리(Models) 코드를 실제 Leptos 기반 Rust 코드로 구현합니다.
+
+# Context (작업 전 필수 확인)
+작업을 시작하기 전에 다음 파일들을 반드시 읽고 문맥을 파악하세요.
+1. **`design.md`**: 구현해야 할 모든 페이지의 레이아웃, 컴포넌트 트리, 사용할 Signal 및 API 흐름이 담겨 있습니다.
+2. **`shared/src/dto/*.rs`**: 백엔드와 통신할 때 사용할 Request/Response 데이터 구조체들입니다. 프론트엔드 모델에서 이 타입들을 임포트하여 사용해야 합니다.
+3. **`frontend/src/router.rs`**: 현재 설정된 클라이언트 사이드 라우팅 구조를 확인하세요.
+
+# Implementation Guidelines (Leptos 코딩 규칙)
+코드를 작성할 때 다음 Leptos 모범 사례를 엄격히 준수하세요:
+- **상태 관리**: 값이 변하는 상태는 반드시 `create_signal`, 파생 상태는 `create_memo`를 사용하세요. 불필요한 `clone()`을 지양하고 Signal의 Copy 특성을 활용하세요.
+- **비동기 데이터 통신**: API 호출은 반드시 `create_resource` 또는 `create_local_resource`를 사용하고, 뷰단에서는 `<Suspense>`와 `<Transition>`을 활용해 로딩 상태를 우아하게 처리하세요.
+- **액션 및 폼 처리**: 폼 제출이나 POST/PUT 등의 상태 변경 요청은 `create_action`을 사용하세요.
+- **에러 처리**: API 호출 실패 시 패닉(`unwrap`)을 발생시키지 말고, `Result`를 반환하여 뷰단에서 `<ErrorBoundary>`를 통해 사용자에게 에러 UI를 보여주세요.
+- **컴포넌트 분리**: `design.md`에 명시된 하위 컴포넌트들은 `frontend/src/components/` (필요시 디렉토리 생성)에 모듈화하여 작성하고, 페이지 파일(`pages/*.rs`)에서 임포트해 조립하는 형태로 구현하세요.
+
+# Task Execution Workflow (단계별 실행 지시)
+**주의**: 한 번에 모든 것을 짜지 말고, 아래의 Phase 순서대로 코드를 작성하고 제게 확인(Confirm)을 받은 후 다음 Phase로 넘어가세요.
+
+### Phase 1: 공통 컴포넌트 & 레이아웃 구현
+- `design.md`의 '공통 UI 요소'를 바탕으로 재사용 가능한 기본 컴포넌트(Button, Input, Modal, ErrorAlert 등)를 `frontend/src/components/`에 구현하세요.
+- `leptos_meta`를 활용한 전역 헤더, 네비게이션(GNB) 등 공통 레이아웃을 구현하세요.
+
+### Phase 2: 상태 모델(Models) 및 API 연동 구현
+- `frontend/src/models/` 내의 파일들(`auth_model.rs`, `escrow_model.rs` 등)에 API 통신 로직(`reqwasm` 또는 `gloo-net` 사용)을 구현하세요.
+- `shared::dto::*` 타입들을 사용하여 직렬화/역직렬화를 완벽하게 처리하는 `create_resource` 및 `create_action` 함수들을 작성하세요.
+
+### Phase 3: 개별 페이지 조립 (Pages)
+- `frontend/src/pages/` 하위의 개별 라우트 파일들을 `design.md`에 명시된 레이아웃과 컴포넌트 트리에 맞게 구현하세요.
+- Phase 1에서 만든 컴포넌트와 Phase 2에서 만든 Model(상태)을 연결하여, 실제 데이터가 바인딩된 반응형 페이지를 완성하세요.
+- `leptos_router`의 `<A>` 태그와 `use_navigate()`를 올바르게 사용하여 페이지 간 전환을 구현하세요.
+
+작업을 시작하세요
+```
+영문번역
+
+```
+# Role
+You are a Senior Frontend Engineer with a deep understanding of the Rust and WebAssembly (WASM) ecosystem, and an expert fully versed in the best practices of the Leptos framework (`leptos`, `leptos_router`, `leptos_meta`).
+
+# Objective
+Based on the planning contents in the completed `design.md` and the data types defined in `shared/src/dto/`, implement the actual Leptos-based Rust code for UI components, pages, and state management (`Models`) inside the `frontend/` directory.
+
+# Context (Mandatory Pre-task Check)
+Before starting the task, you MUST read and understand the context of the following files:
+1. **`design.md`**: Contains the layout, component tree, Signals to be used, and API flows for all pages to be implemented.
+2. **`shared/src/dto/*.rs`**: Request/Response data structures used when communicating with the backend. You must import and use these types in the frontend models.
+3. **`frontend/src/router.rs`**: Check the currently configured client-side routing structure.
+
+# Implementation Guidelines (Leptos Coding Rules)
+Strictly adhere to the following Leptos best practices when writing code:
+- **State Management**: Use `create_signal` for mutable state and `create_memo` for derived state. Avoid unnecessary `clone()` calls and leverage the Copy semantics of Signals.
+- **Async Data Communication**: API calls MUST use `create_resource` or `create_local_resource`. Gracefully handle loading states in the view layer using `<Suspense>` and `<Transition>`.
+- **Actions & Form Handling**: Use `create_action` for state mutation requests such as form submissions, POST, or PUT.
+- **Error Handling**: Do NOT panic (`unwrap`) on API call failures. Return `Result` types and display error UIs to the user using `<ErrorBoundary>` in the view layer.
+- **Component Separation**: Modularize sub-components specified in `design.md` inside `frontend/src/components/` (create the directory if needed), and assemble them by importing into page files (`pages/*.rs`).
+
+# Task Execution Workflow (Step-by-Step Execution Instructions)
+**Note**: Do not code everything at once. Write the code according to the Phase order below, get my confirmation, and then move on to the next Phase.
+
+### Phase 1: Common Components & Layout Implementation
+- Implement reusable base components (Button, Input, Modal, ErrorAlert, etc.) in `frontend/src/components/` based on the 'Common UI Elements' in `design.md`.
+- Implement common layouts such as the global header and navigation bar (GNB) using `leptos_meta`.
+
+### Phase 2: State Models (Models) & API Integration
+- Implement API communication logic (using `reqwasm` or `gloo-net`) in files inside `frontend/src/models/` (`auth_model.rs`, `escrow_model.rs`, etc.).
+- Write `create_resource` and `create_action` functions that seamlessly handle serialization/deserialization using `shared::dto::*` types.
+
+### Phase 3: Individual Page Assembly (Pages)
+- Implement individual route files under `frontend/src/pages/` according to the layout and component trees specified in `design.md`.
+- Connect components created in Phase 1 and Models (state) created in Phase 2 to complete reactive pages bound with real data.
+- Implement navigation between pages by correctly using the `<A>` tag and `use_navigate()` from `leptos_router`.
+
+Begin the task.
+```
+
+# 8. 검토
+## 8.1 api 계약불일치 검토
+```
+# Request for Cross-Comparison Analysis and Report: Frontend - Backend - OpenAPI Specification
+
+The backend implementation and `openapi.yaml` specification are currently complete. 
+
+**Do NOT perform any code modifications at this stage.** Please first prepare a comprehensive analysis report comparing and verifying consistency across the frontend, backend, and `openapi.yaml`.
+
+---
+
+■ Scope of Analysis
+1. **openapi.yaml**: Standard API specification
+2. **Backend Code**: Actually implemented API endpoints, DTOs, DB schema/entities
+3. **Frontend Code**: Leptos UI rendering logic, DTOs, state structs, mock data
+
+■ Key Verification & Cross-Validation Items
+1. **Field Name & DTO Mismatches**: (e.g., `seller_id` vs `owner_uid`, missing or extraneous fields like `item_tags`)
+2. **Data Type Mismatches**: (e.g., `Vec<File>` vs `Vec<String>`, date/time formatting, optionality/nullability)
+3. **API Endpoint Paths & HTTP Methods**: Consistency across URL paths, query parameters, and request body structures
+4. **Authentication/Authorization Header Mechanisms**: Token passing mechanisms (e.g., Bearer tokens) and differences in error response structures
+5. **Discrepancies with OpenAPI Spec**: Differences between `openapi.yaml` and the actual backend implementation, along with gaps regarding data expected by the frontend
+
+---
+
+■ Target Deliverable & Output Format
+Please output the entire analysis as a single, fully structured Markdown file named **`docs/gap_analysis_report.md`** (or create the file directly if file creation is supported in this environment).
+
+The generated Markdown file must follow this structure:
+
+# API & DTO Gap Analysis Report
+
+## 1. Executive Summary
+- Brief overview of total endpoints checked, overall alignment status, and critical blocking issues.
+
+## 2. Endpoint & Path Mapping Table
+| Functionality | OpenAPI Path & Method | Backend Endpoint | Frontend Call / Mock | Status (Match / Mismatch / Missing) |
+|---|---|---|---|---|
+
+## 3. DTO & Field Discrepancies
+For each mismatch found, detail:
+- **Location**: (e.g., `ProductDto` vs `product_new.rs`)
+- **OpenAPI Spec**: [Field name & type]
+- **Backend**: [Field name & type]
+- **Frontend**: [Field name & type]
+- **Impact & Recommendation**: [Why it breaks and suggested alignment]
+
+## 4. Data Type, Nullability & Enum Mismatches
+| Field | OpenAPI Type | Backend Type | Frontend Type | Issue Description |
+|---|---|---|---|---|
+
+## 5. Auth & Header Mechanisms
+- Differences in Bearer token formats, header keys, or error payload schemas.
+
+## 6. Actionable Modification Plan (Phase 4 Tasks)
+- List of prioritized tasks required for Phase 4, split into Frontend Adjustments, Backend Adjustments, and OpenAPI Spec Fixes.
+
+---
+
+■ Rules & Guidelines
+- **Strict Constraint: Do NOT modify any codebase files or `openapi.yaml` during this execution.**
+- Wrap the complete Markdown content inside a single, clean markdown block or write it directly to `docs/gap_analysis_report.md`.
+```
+
+## 8.2 불일치 수정
+```
+# Instructions for Phase 4: OpenAPI Spec Realignment & Code Base Adjustments
+
+Based on the `API & DTO Gap Analysis Report`, we are entering **Phase 4**. 
+Your task is to fix the identified discrepancies across `openapi.yaml`, backend handlers, shared DTOs, and frontend components.
+
+---
+
+### 🚨 General Principles & Ground Truth
+1. **Primary Reference**: The Rust shared DTOs (`crates/shared/src/dto/`) hold the single source of truth for the domain model and obfuscation layer. In most cases, **`openapi.yaml` should be updated to match the Rust DTOs**, rather than modifying working Rust structures.
+2. **Compilation First**: Ensure the workspace builds cleanly (`cargo check --workspace`) after each logical step.
+
+---
+
+### Step 1: Update `openapi.yaml` (High Priority)
+
+1. **`GET /products` Response Schema**:
+   - Define a new schema `ItemSummaryRes` in `components/schemas`.
+   - Update `GET /products` to return an array of `ItemSummaryRes` (including `thumbnail_url`) instead of `ItemDetailRes`.
+
+2. **`POST /products` (`CreateItemReq`)**:
+   - Add `image_urls: Vec<String>` to `CreateItemReq` schema in OpenAPI.
+
+3. **`GET /products/{item_uid}` (`ItemDetailRes`)**:
+   - Add `listed_at` (string) field to `ItemDetailRes` schema.
+
+4. **`GET /wallet/history` (`TxHistoryItemRes`)**:
+   - Update schema fields from (`tx_type`, `tx_hash`, `status`, `created_at`) to match `TxHistoryItemRes`:
+     - `movement_type` (string)
+     - `blockchain_hash` (string)
+     - `process_status` (string)
+     - `timestamp` (string)
+     - `fee_deducted` (number/f64)
+
+5. **`SafeTradeStatusRes` (Escrow Status)**:
+   - Add `buyer_uid`, `seller_uid`, and `created_at` fields to `SafeTradeStatusRes`.
+
+6. **Optionality & Nullability Adjustments**:
+   - **`SignUpReq`**: Mark `contact_email` and `contact_phone` as optional/nullable.
+   - **`UserProfileRes`**: Add optional `bio` field.
+
+---
+
+### Step 2: Backend Adjustments (Medium Priority)
+
+1. **Standardized Error DTO (`ApiErrorRes`)**:
+   - Create/verify `ApiErrorRes` struct in `crates/shared/src/dto/error_dto.rs` (or equivalent location) containing `code` and `message`.
+   - Update backend handlers to return structured `ApiErrorRes` instead of generic `Result<T, String>` for HTTP error status codes (e.g., 400, 401, 404).
+
+2. **Implement Missing Escrow Endpoint**:
+   - Implement `GET /escrow/{trade_uid}` in `escrow_handler.rs` to fetch the current trade state using `SafeTradeStatusRes`.
+   - Document this new endpoint in `openapi.yaml`.
+
+---
+
+### Step 3: Frontend Adjustments (Low Priority)
+
+1. **Error Handling Alignment**:
+   - Update Leptos `Action` and `Resource` error handling logic to parse incoming `ApiErrorRes` objects instead of treating error payloads as plain strings.
+
+2. **Code Hygiene**:
+   - Clean up remaining `#![allow(unused)]` attributes and unused imports across Leptos view files (`wallet.rs`, `product_new.rs`, etc.).
+
+---
+
+### Verification Strategy
+After completing the changes:
+1. Validate `openapi.yaml` formatting and syntax.
+2. Run `cargo check --workspace` to ensure zero compilation errors in both backend and frontend crates.
+3. Provide a summary of modified files and confirmation that Phase 4 is complete.
+```
+
+# 9. 최종 빌드
+```bash
+docker compose -f docker/docker-compose.python_test.yml up -d --build 
+docker compose -f docker/docker-compose.python_test.yml down -v 
+
+
+
+docker compose -f docker/docker-compose.yml up -d --build 
+docker compose -f docker/docker-compose.yml ps
+
+docker compose -f docker/docker-compose.yml logs -f app
+```
+
+http://127.0.0.1:8080/index.html 접속
+
+
+```bash
+docker compose -f docker/docker-compose.yml down -v 
+```
+종료
+
+
+# 10. 기능 구현 점검
+## 10.1 ai를 이용한 기능 구현 점검
+✅ 구현 완료 항목:
+1.1.1 사용자 이름 중복 확인
+1.2.1 로그인/로그아웃 및 토큰 관리
+1.2.2 지갑 출금 시 2FA 인증
+1.3.1 사용자 프로필 및 자기소개 작성/수정
+2.1.1 DB 내 아이템 데이터 저장
+2.2.1 목록 조회 (아이템명, 가격, 썸네일, 아이템 상태, 조회수)
+2.2.3 아이템 상태 업데이트
+4.1.1 WebSocket 기반 1:1 개인 채팅
+4.2.1 리뷰 및 평점 작성
+4.2.2 신뢰도 점수 자동 계산
+5.1.2 네트워크 수수료 계산 및 공개
+5.2.1 아이템 상태의 '예약됨(Reserved)' 자동 전환
+5.2.2 자금 정산 및 플랫폼 수수료 차감
+5.2.3 백그라운드 크론(cron)을 통한 자동 확정 (타임아웃)
+6.1.1 신고 임계값 초과 시 아이템 자동 차단 / 계정 휴면 처리
+6.1.2 사용자당 아이템별 1회 신고 제한 (DB UNIQUE 제약 조건)
+7.1.1 미들웨어를 통한 역할 기반 접근 제어 (RBAC)
+7.2.1 민감한 작업에 대한 감사 로그 기록
+SR.1, SR.2, SR.3: 모든 보안 요구사항 (Opaque ID, 포트/어댑터 패턴, 개인키 DB 암호화)이 완전히 구현됨.
+
+⚠️ 부분 구현 항목:
+1.3.2 & 2.2.2: 백엔드에서 사용자 신뢰도 점수가 정상 계산되지만 상세 조회 DTO에 점수가 노출되지 않으며, 프론트엔드 UI에서는 모킹(mock) 데이터로 처리되어 있음.
+3.1.1: 제목 및 카테고리 필터링은 동작하지만, 태그 필터링은 백엔드에서 무시됨.
+5.1.1: 회원가입 시 지갑 레코드는 생성되지만, 포트 어댑터를 통한 실제 BCH 주소 생성이 현재 하드코딩/모킹되어 있음.
+5.2.4: 관리자의 강제 분쟁 해결 기능이 DB 상태는 업데이트하지만, 환불/정산을 위한 실제 지갑 잔액 업데이트 실행에는 실패함.
+
+❌ 미구현 항목:
+1.1.2: 이메일 또는 SMS 인증이 주석상으로 명시적 제외 처리되어 있으며 관련 로직이 없음.
+3.2.1 & 3.2.2: 채팅 메시지 및 에스크로 상태 변경에 대한 웹/푸시 알림. 알림(Notification) 포트/서비스는 존재하지만, 채팅 및 에스크로 서비스에서 실제로 이를 호출하지 않음.
+
+
+## 10.2 미구현 기능 구현
+ai를 통해 리팩토링했지만, 다음 미구현 기능을 구현해야 한다.
+```rust
+// crates/backend/src/infra/verification_adapter.rs
+use async_trait::async_trait;
+use crate::ports::verification_port::{VerificationPort, VerificationPortError};
+
+pub struct VerificationAdapter;
+
+impl VerificationAdapter {
+    pub fn new() -> Self {
+        VerificationAdapter
+    }
+}
+
+#[async_trait]
+impl VerificationPort for VerificationAdapter {
+    async fn verify_code(&self, _target: &str, _code: &str) -> Result<bool, VerificationPortError> {
+        // Dummy implementation: always returns true for now
+        Ok(true)
+    }
+}
+```
+
+해당 기능에는 이메일 전송, 인증 프로세스가 없다. trait도 다음과 같다.
+```rust
+// crates/backend/src/ports/verification_port.rs
+use async_trait::async_trait;
+use thiserror::Error;
+#[cfg(test)]
+use mockall::automock;
+
+#[derive(Debug, Error)]
+pub enum VerificationPortError {
+    #[error("API 호출 실패: {0}")]
+    ApiError(String),
+}
+
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait VerificationPort: Send + Sync {
+    async fn verify_code(&self, target: &str, code: &str) -> Result<bool, VerificationPortError>;
+}
+```
+
+따라서 trait에 send_code 추가후, adapter에서 전역적으로 인증메일, 코드를 관리하도록 수정해야한다.
+-> code의 경우 테스트 용이성을 위해 고정코드로 설정
+
+
+## 10.3 송금기능 확장
+
+테스트가 용이하도록
+비트코인 캐시 -> 이더리움으로 방향 변경, 기존의 코드 전부 유지하고, servcie쪽만 갈아끼움 (trait 이용)
+```
+# Role
+You are a Senior Blockchain Engineer and an Autonomous AI Agent highly proficient in Rust backend development and Ethereum smart contract (Solidity) integration.
+
+# Objective
+Migrate the existing database-driven Escrow (Safe Trade) business logic to an Ethereum smart contract-based architecture. Set up a local Ethereum environment to run and validate integration tests for this migration.
+
+# Strict Constraints (CRITICAL)
+1. **Preserve DTOs**: Do absolutely NOT modify any structs inside `shared::dto::escrow_dto`. These Request/Response DTOs are strict API contracts with the frontend and must remain exactly as they are.
+2. **Preserve & Track Models**: Maintain the existing DB Entities (`escrow_trade`, `wallet`, `wallet_transaction`). If adding new fields (e.g., blockchain `tx_hash` or `contract_address`) is unavoidable, you must leave explicit comments tracking the changes.
+3. **Seamless Integration**: Do not modify the existing `EscrowService` directly. Instead, create a new service named `EthEscrowService` that implements the existing `EscrowServiceTrait`. This ensures loose coupling and allows easy swapping via Dependency Injection (DI).
+4. **Main Environment Testing & Reporting**: You must test the entire escrow flow (Initiate -> Dispute -> Confirm) using a local testnet, verify it, and generate a final report.
+
+# Step-by-Step Tasks
+
+## Step 1. Local Ethereum Testnet Setup
+- Create a `docker-compose.yml` to spin up a lightweight local Ethereum node. (Using **Foundry Anvil** is highly recommended).
+- Expose port `8545`, set Chain ID to `31337`, and ensure the node provides pre-funded test accounts with sufficient ETH.
+
+## Step 2. Smart Contract Development (Solidity)
+- Write an `Escrow.sol` contract handling the core states: `deposit`, `release` (confirm), `dispute`, and `refund`.
+- Ensure appropriate Solidity `event`s are emitted upon every state transition.
+
+## Step 3. Rust Ethereum Service Implementation (`EthEscrowService`)
+- Implement `EthEscrowService` using the `ethers-rs` (or `alloy`) crate.
+- Map the business logic to interact with the blockchain while syncing with the DB:
+  - `initiate`: Send a deposit transaction to the contract -> Create DB `escrow_trade` record (`status: deposited`).
+  - `confirm`: Execute the release function on the contract -> Update DB status to `settled`.
+  - `dispute`: Execute the dispute function on the contract -> Update DB status to `disputed`.
+- **Security**: Manage wallet private keys securely. Inject them via environment variables or use a KMS Mock for testing purposes. Do not hardcode them in the logic.
+
+## Step 4. Integration Test Code & Validation
+- Write integration tests in `tests/escrow_eth_integration_test.rs`.
+- Test Scenarios to cover:
+  1. Contract deployment (Mocked or deployed to the local Anvil node).
+  2. `initiate`: Assert deposit success and validate the `SafeTradeStatusRes` DTO mapping.
+  3. `dispute`: Assert dispute success and verify DB state synchronization.
+  4. `confirm`: Assert final settlement, verify seller's blockchain balance increase, and DB state sync.
+- Ensure strict assertions to guarantee compatibility with existing DTOs.
+
+## Step 5. Execution & Reporting
+- As an autonomous agent, automatically spin up the Docker container, run `cargo test` on the integration tests, and analyze the results.
+- Write a **[Final Verification Report]** in Markdown format. The report must include:
+  - Blockchain transaction success/failure status.
+  - DB state synchronization validation.
+  - DTO serialization/deserialization integrity checks.
+
+# Input Context (Existing Code)
+```
+
+위 작업으로 생성된 코드를, 이용해 현재 프로젝트에 마이그레이션
+## 10.4 프론트엔드 이메일 api, 2fa 플로우, 알림 서비스 통합 여부 점검
+```
+You are a Senior QA Engineer and Software Architect. I need you to audit the current codebase and write a detailed analysis report regarding three specific features.
+
+[STRICT READ-ONLY RESTRICTION]
+You must NOT modify, create, or delete any files. You are strictly in READ-ONLY mode. Use your search and read tools to inspect the codebase and generate a Markdown report based on your findings.
+
+Please trace the codebase and verify the following 3 scenarios:
+
+1. Frontend Email 'Send Code' API Call:
+- Locate the email verification UI/component in the frontend.
+- Check if clicking the "Send Email" button actually calls the backend `sendcode` API. Report whether this integration is implemented correctly or if it is just a dummy button.
+
+2. End-to-End 2FA (Two-Factor Authentication) Login Flow:
+- Backend: Verify the login logic. If a user has 2FA enabled and inputs the correct password, does the backend properly block the immediate token issuance and return a "2FA required" state?
+- Frontend: Trace the frontend login scenario. Is there a mechanism/UI that handles this "2FA required" response, prompts the user for the 2FA code, and successfully completes the login process? Report on whether this defensive logic and end-to-end login flow are fully functional.
+
+3. Missing Notification Hooks (Chat & Escrow):
+- We have a Web/Push Notification port/service in the backend, but it seems it is not being utilized.
+- Inspect the `chat_service` (specifically when a new message is created) and `escrow_service` (when an escrow state changes). 
+- Verify and report if these services are actually calling the Notification service. If they are missing, pinpoint exactly where the notification triggers (hooks) should be injected.
+
+[Output Format]
+Please provide your findings in a structured Markdown report:
+## 1. Frontend Email Verification API Status
+## 2. 2FA Login Flow Audit (Backend & Frontend)
+## 3. Notification Integration Status (Chat & Escrow)
+```
+
+ai 답변은
+
+```
+Listed directory tiny_second_hand_shopping_platfrom
+Searched for "sendcode"
+Searched for "send_code"
+Searched for "login"
+Searched for "escrow_service"
+Searched for "chat_service"
+Searched for "Notification"
+Viewed signup.rs:1-139
+Viewed login.rs:1-88
+Viewed auth_model.rs:1-128
+Viewed auth_handler.rs:1-138
+Viewed auth_service.rs:1-295
+Viewed chat_service.rs:1-152
+Viewed escrow_service.rs:1-322
+
+Based on the read-only audit of the codebase, here is the detailed analysis report addressing the three specific features you requested.
+
+## 1. Frontend Email Verification API Status
+- **Location Audited:** `crates/frontend/src/pages/signup.rs`
+- **Findings:** The frontend email verification integration is **not implemented**.
+- **Details:** The "코드 전송" (Send Code) button in the UI is currently just a dummy component. Its event handler is assigned an empty closure (`on_click=|| {}` around line 117). As a result, clicking the button does not dispatch any HTTP request to the backend `/v1/auth/sendcode` API, even though the backend handler for it is fully defined. 
+
+## 2. 2FA Login Flow Audit (Backend & Frontend)
+- **Backend Audit (`crates/backend/src/service/auth_service.rs`):** The defensive logic is **missing**. In the `login` function, after successfully verifying the user's password hash via Argon2, the backend immediately signs and returns a JWT access token. It does not check the `user.is_2fa_enabled` database flag, meaning it never blocks the token issuance or returns a "2FA required" intermediate state.
+- **Frontend Audit (`crates/frontend/src/pages/login.rs` & `models/auth_model.rs`):** The frontend 2FA logic is **missing**. The `create_login_action` assumes that the API will always return an `AuthTokenRes` upon providing correct credentials. There is no conditional logic or UI mechanism implemented to catch a "2FA required" status, prompt the user for an OTP code, and subsequently finalize the login.
+- **Conclusion:** The end-to-end 2FA login flow is non-functional. While the setup and validation logic for TOTP exists in the backend, the actual login flow bypasses it completely.
+
+## 3. Notification Integration Status (Chat & Escrow)
+- **Escrow Service (`crates/backend/src/service/escrow_service.rs`):** The Notification integration is **functional**. The service successfully utilizes `self.notification_port.send(CreateNotificationCmd {...})` during state transitions:
+  - During `initiate`: Notifies both the buyer and the seller.
+  - During `confirm`: Notifies the seller that the trade is settled and funds are released.
+  - During `dispute`: Notifies the seller of a raised dispute.
+- **Chat Service (`crates/backend/src/service/chat_service.rs`):** The Notification integration is **missing**. 
+  - **Details:** In the `send_message` method, the system successfully publishes the message to the PubSub channel but fails to notify the offline/recipient user.
+  - **Where to inject:** The trigger should be injected around lines 108-111 in `chat_service.rs`. Currently, there is only a `TODO` comment indicating that the recipient cannot be reliably found due to a missing `chat_participant` table:
+    ```rust
+    // Notify the recipient
+    // TODO: Since chat_participant table doesn't exist, we can't reliably find the recipient.
+    // In a real implementation, we would query the participant list.
+    ```
+    Once the participant querying is resolved, a call to `self.notification_service.send()` (or similar) needs to be injected exactly at this location, right after the `self.pubsub.publish` block, to successfully push notifications for incoming chat messages.
+```
+
+미구현 상태, 해당 부분을 구현함
+
+
+# 11. 이더리움 테스트용 클라이언트 만들기 (다른 레포에 등록함)
+
+
+
+# 12. 프론트엔드 css 디자인
+
+
+```
+**[Role & Persona]**
+You are an Awwwards-winning Lead UI/UX Designer and Senior Frontend Engineer. You specialize in transforming functional interfaces into visually stunning, highly polished, and modern digital experiences.
+
+**[Strict Guardrails (CSS/UI Only)]**
+- **Boundary:** You must operate STRICTLY within the frontend (`crates/frontend/`). 
+- **No Logic Changes:** Do NOT modify backend code, API calls, state management logic, or core business rules. 
+- **Scope:** Your modifications are strictly limited to CSS files, style attributes, utility classes (e.g., Tailwind), and minor HTML/DOM restructuring required purely for styling and layout purposes.
+
+**[Aesthetic Directives & Design System (The "Beautiful" Standard)]**
+To ensure the site looks beautiful, professional, and cohesive, enforce the following UI/UX principles across the application:
+1. **Visual Hierarchy & Whitespace:** Use generous, consistent padding and margins (e.g., 4-point or 8-point grid). Ensure clear spacing between distinct sections to let the UI "breathe".
+2. **Typography:** Establish a clear font hierarchy. Use high contrast for primary text, softer tones for secondary text, and comfortable line heights (e.g., `1.5` or `1.6` for body text).
+3. **Color Palette & Depth:** Apply a cohesive, modern color palette. Use subtle, soft box-shadows (`shadow-sm` to `shadow-lg`) and borders to create depth and separate surface layers (e.g., cards floating on a slightly darker background).
+4. **Micro-interactions:** Add smooth CSS transitions (`transition-all duration-200 ease-in-out`) on interactive elements (hover states on buttons, cards, and links, as well as focus rings for accessibility).
+5. **Responsiveness:** Ensure all layouts adapt gracefully to mobile, tablet, and desktop using modern Flexbox and CSS Grid techniques.
+
+**[Cognitive Architecture (Plan-and-Solve & ReAct)]**
+Do not blindly apply styles. Follow this systematic approach:
+
+**Phase 1: Thought (Design System Planning)**
+- Analyze the current UI components in `crates/frontend/`.
+- Propose a consistent Design System (Primary colors, border-radius standards, spacing scale, and shadow types) that fits the product's identity.
+
+**Phase 2: Action (Execution)**
+- Apply the defined design system to the global stylesheets and individual components (e.g., inputs, buttons, cards, navbars).
+
+**Phase 3: Observation & Reflexion (Visual Audit)**
+- Mentally review the applied styles: "Is the contrast ratio readable? Are the hover states distinct? Does the layout break on small screens?"
+- If any UI element feels clunky or outdated, refine it before finalizing.
+
+**Execution:**
+Begin immediately with **Phase 1**. Output your aesthetic strategy and target components, then execute the styling changes.
+```
+
+
+# 13. 블록체인 부분 수정
+
+```
+
+**[Role & Persona]**
+You are a Senior Web3 Backend Architect and Integration Expert. You specialize in safely porting external reference implementations into existing Rust (Axum) codebases and managing dependency injection.
+
+**[Task & Problem Context]**
+We need to replace our backend's legacy Bitcoin Cash (BCH) logic with Ethereum (EVM) logic. 
+I am providing you with a fully functional, verified `BlockchainManager` implementation written in `ethers-rs` (extracted from another working client). 
+Your task is to **port this provided reference code into our current backend**, wire it up to the Axum state, ensure compatibility with our local Anvil Docker container, and completely eradicate the old BCH configurations.
+
+**[Provided Reference Code (Blueprint)]**
+// (Agent, assume the user will provide the BlockchainManager code block here)
+// [USER: Insert the ethers-rs code block here]
+
+use ethers::prelude::*;
+use eyre::Result;
+use rand::thread_rng;
+use serde::{Deserialize, Serialize};
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserAccount {
+    pub alias: String,
+    pub address: String,
+    pub private_key: String,
+    #[serde(skip)]
+    pub balance: U256,
+}
+
+impl UserAccount {
+    pub fn new(alias: String) -> Self {
+        let wallet = LocalWallet::new(&mut thread_rng());
+        Self {
+            alias,
+            address: format!("{:?}", wallet.address()),
+            private_key: hex::encode(wallet.signer().to_bytes()),
+            balance: U256::zero(),
+        }
+    }
+}
+
+pub struct BlockchainManager {
+    provider: Provider<Http>,
+    master_wallet: LocalWallet,
+    chain_id: u64,
+}
+
+impl BlockchainManager {
+    pub async fn new(rpc_url: &str, master_key: &str) -> Result<Self> {
+        let provider = Provider::<Http>::try_from(rpc_url)?;
+        let chain_id = provider.get_chainid().await?.as_u64();
+        let master_wallet = master_key.parse::<LocalWallet>()?.with_chain_id(chain_id);
+
+        Ok(Self {
+            provider,
+            master_wallet,
+            chain_id,
+        })
+    }
+
+    pub fn provider(&self) -> &Provider<Http> {
+        &self.provider
+    }
+
+    pub fn chain_id(&self) -> u64 {
+        self.chain_id
+    }
+
+    pub fn master_address(&self) -> Address {
+        self.master_wallet.address()
+    }
+
+    pub async fn get_balance(&self, address: Address) -> Result<U256> {
+        let balance = self.provider.get_balance(address, None).await?;
+        Ok(balance)
+    }
+
+    pub async fn fund_account(&self, target: Address, amount: U256) -> Result<TxHash> {
+        // Try Anvil cheatcode first
+        let is_anvil = {
+            let res: Result<U256, _> = self.provider.request("anvil_nodeInfo", ()).await;
+            res.is_ok() || self.chain_id == 31337 // fallback heuristic
+        };
+
+        if is_anvil {
+            // Use anvil_setBalance cheatcode
+            let current_balance = self.get_balance(target).await?;
+            let new_balance = current_balance.saturating_add(amount);
+            let hex_balance = format!("{:#x}", new_balance);
+            let address_hex = format!("{:?}", target);
+            
+            let _: () = self.provider.request("anvil_setBalance", (address_hex, hex_balance)).await?;
+            Ok(TxHash::zero()) // No real tx hash for cheatcode
+        } else {
+            // Real transaction from master
+            let client = SignerMiddleware::new(self.provider.clone(), self.master_wallet.clone());
+            let tx = TransactionRequest::new()
+                .to(target)
+                .value(amount);
+            
+            let pending_tx = client.send_transaction(tx, None).await?;
+            let receipt = pending_tx.await?.ok_or_else(|| eyre::eyre!("Tx dropped"))?;
+            Ok(receipt.transaction_hash)
+        }
+    }
+
+    pub async fn send_transaction(&self, from_key: &str, target: Address, amount: U256) -> Result<TxHash> {
+        let wallet = from_key.parse::<LocalWallet>()?.with_chain_id(self.chain_id);
+        let client = SignerMiddleware::new(self.provider.clone(), wallet);
+        let tx = TransactionRequest::new()
+            .to(target)
+            .value(amount);
+        
+        let pending_tx = client.send_transaction(tx, None).await?;
+        let receipt = pending_tx.await?.ok_or_else(|| eyre::eyre!("Tx dropped"))?;
+        Ok(receipt.transaction_hash)
+    }
+}
+
+
+[Cognitive Architecture: Plan-and-Solve & Safe Porting]
+You are operating in Read-Write Mode. Execute the following sub-goals sequentially to implement an end-to-end integration:
+
+Sub-goal 1: Dependency Injection & File Creation (The Porting)
+
+Hypothesis: Since this is external code, the target backend might be missing the ethers or eyre dependencies in Cargo.toml, and needs a dedicated file for this manager.
+
+Directive:
+
+Add necessary dependencies (ethers, eyre, hex) to crates/backend/Cargo.toml.
+
+Create a new module (e.g., crates/backend/src/utils/blockchain.rs or similar) and carefully port the provided BlockchainManager code into it. Export it properly in mod.rs.
+
+Sub-goal 2: Legacy Purge & Env Alignment
+
+Hypothesis: The current backend expects BCH_API_URL. This needs to be replaced to feed the new BlockchainManager.
+
+Directive: Search for BCH_API_URL. Rename it to ETH_RPC_URL. Ensure the default points to our Anvil container (http://127.0.0.1:8545 or http://escrow-anvil:8545). Add MASTER_WALLET_KEY to the env configuration (using Anvil's default 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80).
+
+Sub-goal 3: Axum State Injection in main.rs
+
+Hypothesis: The new BlockchainManager must be instantiated at startup and shared safely across threads to be used by Axum handlers.
+
+Directive: In crates/backend/src/main.rs, initialize the BlockchainManager. Wrap it in Arc<BlockchainManager> and inject it into the Axum AppState (or Router State). Ensure AppState implements Clone.
+
+[Execution (ReAct Loop & Architecture Reflexion)]
+For each Sub-goal, adhere strictly to this loop:
+
+Thought: Explain your exact plan. Where will you create the new file? How will you update Cargo.toml? How will you structure the Axum AppState?
+
+Action: Execute the tool to read, modify, and create the necessary files.
+
+Observation & Reflexion (Mandatory Verification):
+
+Reflexion SG1: "Did I add the ethers crate correctly? Are there any missing imports in the new file?"
+
+Reflexion SG3: "Did I wrap the manager in an Arc? Does the compiler throw an extractor error?"
+
+Run cargo check --manifest-path crates/backend/Cargo.toml after completing all steps to guarantee zero compiler errors.
+
+Begin immediately with Sub-goal 1. Output your Thought and Action to port the reference code.
+```
+
+# 14. 에스크로 수정
+```
+**[Role & Task]**
+You are a Senior Backend Debugging Agent specializing in Rust (Axum) and Web3 (EVM) architectures. Your task is to perform a Root Cause Analysis (RCA) for a `500 Internal Server Error` occurring when a client attempts to create an escrow.
+
+**[Strict Guardrails (Read-Only Mode)]**
+- **ZERO MODIFICATION POLICY:** You are operating in a strictly READ-ONLY environment. 
+- You must deeply analyze the backend codebase (`crates/backend/`) to trace the error stack. **Under no circumstances are you allowed to modify, refactor, or output any rewritten code.** Your final output must be purely a diagnostic RCA Report.
+
+**[Context & Observation Data]**
+- **Endpoint:** `POST http://localhost:8080/v1/escrow`
+- **Error:** `500 Internal Server Error`
+- **Hypothesis Boundary:** A 500 error implies the route matched successfully, but the server panicked or returned an unhandled error domain during execution. Focus strictly on runtime panics, unhandled `Result::Err` bubbling, EVM RPC failures, or Database constraint violations.
+
+**[Cognitive Architecture & Attention Mechanism]**
+Enter the **ReAct (Reason + Act)** loop. Focus your investigation sequentially on these 3 critical Attention Areas:
+
+**Attention 1: Handler & Error Mapping (The Entry Point)**
+- **Target:** `crates/backend/src/handlers/escrow_handler.rs` and global error handlers (`error.rs`).
+- **Check:** Inspect the `POST` handler for escrow creation. Is it extracting a state that doesn't exist (e.g., missing `Extension` or `State`) causing an immediate panic? Trace how errors from the service layer are mapped to `500 Internal Server Error`.
+
+**Attention 2: Service Layer & EVM Interaction (The Business Logic)**
+- **Target:** `crates/backend/src/service/eth_escrow_service.rs` (or similar service).
+- **Check:** Look for any `.unwrap()` or `.expect()` calls that might panic. Does the service attempt to call a smart contract or the EVM node (Anvil) via `ethers-rs`? If the RPC node is down, unreachable, or a transaction reverts, does it bubble up as a 500 error?
+
+**Attention 3: Database Persistence (The Data Layer)**
+- **Target:** Database insertion logic for the Escrow entity (`create` operations).
+- **Check:** Is the application trying to insert a record that violates a DB constraint? (e.g., a missing foreign key for `product_id` or `buyer_id`, or a unique constraint violation).
+
+**[Execution (ReAct Loop Initialization)]**
+Start the ReAct loop to generate the final RCA report:
+- **Thought:** Explain your strategy for tracing the request lifecycle from the Axum handler down to the EVM and Database. Which exact files will you read first to find the stack trace of this 500 error?
+- **Action:** Execute the tool to read the backend escrow handler, service, and error definition files.
+
+*(Reminder: Output purely analytical Thoughts and Actions until you have isolated the exact line or logic causing the 500 error. Conclude with a comprehensive RCA Report. DO NOT output fix codes.)*
+```
+
+보고서를 바탕으로 예외처리를 단단하게 만드는 과정 진행
+```
+**[Mode Switch & Role Update]**
+Excellent diagnostic work. The RCA report is perfectly accurate. You have successfully identified that "Error Masking" is causing transient, business, and DB errors to bubble up as a generic `500 Internal Server Error`.
+You are now transitioning from a Read-Only Diagnostic Agent to an **Autonomous Backend Architecture Agent (Read-Write Mode)** specializing in Rust error propagation and API design.
+
+**[Task & Sub-goal Breakdown (Plan-and-Solve)]**
+Your overarching objective is to unmask the internal errors, implement granular error handling, and ensure the API returns semantically correct HTTP status codes. Execute these sub-goals sequentially:
+
+**Sub-goal 1: Expand Domain Errors (Traits / Error Enum)**
+- **Target:** `crates/backend/src/service/traits.rs` (or where `EscrowServiceError` is defined) and `crates/backend/src/utils/error.rs`.
+- **Directive:** Expand the `EscrowServiceError` enum. Add new specific variants: `InvalidWalletAddress`, `ContractRevert(String)`, and `RpcError(String)`. Ensure these are properly mapped in Axum's `IntoResponse` (or `AppError` mapping) so that:
+  - `ProductNotFound` & `TradeNotFound` -> `404 Not Found`
+  - `InsufficientBalance`, `InvalidWalletAddress`, `ContractRevert` -> `400 Bad Request`
+  - `RpcError` -> `502 Bad Gateway`
+
+**Sub-goal 2: Service Layer Refactoring (EVM & DB Checks)**
+- **Target:** `crates/backend/src/service/eth_escrow_service.rs`
+- **Directive:** 
+  1. **Pre-flight Check:** Before calling the EVM contract, validate the `seller_address` and `buyer_address`. If parsing fails, return `EscrowServiceError::InvalidWalletAddress` instead of `Internal`.
+  2. **Refine `.map_err()`:** Differentiate `ethers-rs` errors. Map network/timeout errors to `RpcError` and smart contract execution failures (out of gas, requirements not met) to `ContractRevert`. Leave true database panic constraints as `Internal`.
+
+**Sub-goal 3: Handler Mapping Alignment (API Layer)**
+- **Target:** `crates/backend/src/handlers/escrow_handler.rs`
+- **Directive:** Update the `match e` block inside `initiate_escrow`. Remove the lazy `_ => AppError::Internal` wildcard if possible, or explicitly catch the newly defined domain errors (like `ProductNotFound`, `InsufficientBalance`) and map them to their corresponding `AppError` variants so the correct HTTP status code is returned to the frontend.
+
+**[Execution (ReAct Loop & Cross-Boundary Reflexion)]**
+For **each Sub-goal**, adhere strictly to this ReAct loop:
+
+- **Thought:** State your exact error refactoring plan. How will you modify the `EscrowServiceError` enum without breaking the `escrow_dispatcher.rs` which might also use it?
+- **Action:** Execute the tool to modify the handler, service, and error definition files.
+- **Observation & Reflexion (Mandatory Compiler Check):** 
+  - *Reflexion:* "Did adding new variants to `EscrowServiceError` break the legacy `bch_escrow_service` or `escrow_dispatcher` match blocks? Does Axum's `IntoResponse` still compile?"
+  - Immediately run `cargo check --manifest-path crates/backend/Cargo.toml`. Self-correct any missing `match` arms before declaring the task complete.
+
+Begin immediately with **Sub-goal 1**. Output your Thought and Action to expand the error definitions.
+```
+
+에스크로의 도메인 버그를 고치는 과정
+```
+**[Role & Task]**
+You are a Senior Backend Debugging Agent specializing in Domain-Driven Design (DDD), Access Control (Authorization), and Idempotent API design. Your task is to perform a Root Cause Analysis (RCA) to verify if two specific logical flaws exist in the Escrow system's codebase.
+
+**[Strict Guardrails (Read-Only Mode)]**
+- **ZERO MODIFICATION POLICY:** You are operating in a strictly READ-ONLY environment. 
+- Do NOT rewrite or fix any code. Your sole objective is to audit the backend business logic and confirm exactly where and why these logical bugs occur.
+
+**[Context & Observation Data]**
+The escrow system is currently exhibiting two critical business logic failures:
+1. **Seller Lockout:** The seller of a product is completely unable to access or view the escrow associated with their own product.
+2. **Buyer Single-Access Bounce:** The buyer can initiate/access the escrow the first time. On the second attempt, instead of fetching the existing escrow, the system rejects the buyer (or crashes/bounces).
+
+**[Cognitive Architecture & Directed Exploration (ReAct Loop)]**
+Enter the **ReAct (Reason + Act)** loop. Investigate the codebase by focusing on these 3 critical Attention Areas:
+
+**Attention 1: Access Control Validation (The Seller Lockout)**
+- **Target:** `crates/backend/src/handlers/escrow_handler.rs` and `crates/backend/src/service/eth_escrow_service.rs` (specifically fetch/get operations).
+- **Hypothesis:** The backend query or authorization block strictly enforces `if escrow.buyer_uid != user.uid { return Forbidden }`. It entirely forgets to check `|| product.seller_uid == user.uid`, effectively locking the seller out of their own trade.
+- **Check:** Audit the validation logic where an escrow is retrieved by its ID. Look for missing ownership checks regarding the seller.
+
+**Attention 2: API Idempotency & State Flow (The Buyer Bounce)**
+- **Target:** Escrow initialization logic (`create` or `initiate` operations).
+- **Hypothesis:** When the buyer enters the product page a second time, the frontend likely calls `POST /escrow` again. The backend lacks an idempotency check (e.g., "Does an active escrow already exist for this buyer and product?"). Instead of gracefully returning the existing escrow, it attempts to insert a duplicate, triggering a Database Unique Constraint Violation or a state panic, causing the "bounce".
+- **Check:** Verify if `initiate_escrow` has a fallback to fetch an existing active escrow before attempting to create a new one.
+
+**Attention 3: Database Schema & Unique Constraints**
+- **Target:** Escrow Entity definitions (`crates/backend/src/db/entity/escrow.rs`).
+- **Check:** Are there unique constraints on `(product_uid, buyer_uid)`? If so, confirm how the service layer handles `DbErr::RecordNotInserted` or unique key violations.
+
+**[Execution (ReAct Loop Initialization)]**
+Start the ReAct loop to generate the final RCA report:
+- **Thought:** Explain your strategy to trace the Escrow Fetch and Create lifecycles. Which specific functions will you inspect to prove or disprove the Seller Lockout and Buyer Bounce hypotheses?
+- **Action:** Execute the tool to read the escrow handler, service logic, and database entities.
+
+*(Reminder: Output purely analytical Thoughts and Actions until you have isolated the exact code blocks causing these domain flaws. Conclude with a comprehensive RCA Report. DO NOT output fix codes.)*
+```
+
+에스크로 비즈니스 도메인 버그 수정
+```
+**[Mode Switch & Role Update]**
+Excellent diagnostic work. The RCA report perfectly isolated the issues: the Buyer Bounce is caused by a lack of API idempotency during state validation, and the Seller Lockout is not a backend auth issue, meaning it must be a Frontend UI/Routing blocker.
+You are now transitioning from a Read-Only Diagnostic Agent to an **Autonomous Full-Stack Engineering Agent (Read-Write Mode)** specializing in Idempotent API design and Frontend State logic.
+
+**[Task & Sub-goal Breakdown (Plan-and-Solve)]**
+Your objective is to fix the buyer bounce by injecting an idempotency fallback in the backend, and to fix the seller lockout by removing the frontend UI restriction. Execute these sub-goals sequentially:
+
+**Sub-goal 1: Implement Backend Idempotency (Buyer Bounce Fix)**
+- **Target:** `crates/backend/src/service/eth_escrow_service.rs` (and/or `escrow_service.rs`), specifically the `initiate` function.
+- **Directive:** Before checking `if p.status != "on_sale"`, query the database for an existing active `escrow_trade` where `product_id == req.product_id` AND `buyer_id == user_id`. 
+  - If a valid existing trade is found, **return it early (Idempotency)** instead of throwing an `InvalidState` error. 
+  - If no trade exists, proceed with the normal creation logic.
+
+**Sub-goal 2: Unblock Seller UI Access (Seller Lockout Fix)**
+- **Target:** `crates/frontend/src/pages/product_detail.rs` (or equivalent product/escrow UI components).
+- **Directive:** Since the backend allows sellers to fetch the trade, the frontend must be conditionally hiding the "View Escrow" button or routing incorrectly if the current user is the seller. 
+  - Inspect the frontend logic. Look for blocks like `if is_buyer { show_escrow() }`. 
+  - Modify the logic so that **both the buyer and the seller** can see the button and navigate to the active escrow room. Ensure the correct `escrow_uid` is passed to the route.
+
+**[Execution (ReAct Loop & Cross-Boundary Reflexion)]**
+For **each Sub-goal**, adhere strictly to this ReAct loop:
+
+- **Thought:** State your logic. For SG1, how will you construct the SeaORM query to find the existing trade? For SG2, which frontend files will you search to find the UI blocker?
+- **Action:** Execute the tool to modify the backend service and the frontend UI components.
+- **Observation & Reflexion (Mandatory Verification):** 
+  - *Reflexion SG1:* "If the buyer clicks 'Buy' twice, does the backend now return `Ok(existing_trade)` instead of `Err(InvalidState)`?"
+  - *Reflexion SG2:* "Is the seller now able to click the escrow button on their own product page without being blocked by the UI?"
+  - Immediately run `cargo check --manifest-path crates/backend/Cargo.toml` and `cargo check --manifest-path crates/frontend/Cargo.toml` to ensure your database queries and UI changes compile correctly.
+
+Begin immediately with **Sub-goal 1**. Output your Thought and Action to implement idempotency in the backend.
+```
+
+# 15. wallet 잔액이 evm, db쪽에 둘다 가지고 있으며 생기는 문제점을 수정
+evm을 조회하며 동적으로 유지하는 방향으로 수정함
+```
+<role>
+You are a Principal Web3 Rust Backend Architect and SeaORM & EVM Database Architecture Specialist.
+You specialize in ensuring state consistency between on-chain data and off-chain databases, adhering strictly to the Single Source of Truth (SSOT) principle, and engineering fault-tolerant Rust backend systems.
+</role>
+
+<problem_statement>
+Currently, the `wallets` entity/table contains a `balance: Decimal` column. This leads to a critical logical bug where the database balance remains unchanged after on-chain transactions, causing state desynchronization between off-chain database records and actual on-chain wallet balances.
+
+In the EVM ecosystem, the **on-chain state (Blockchain RPC Node)** is the sole Single Source of Truth for wallet balances. Storing balances redundantly in the database must be completely deprecated, and the system must be refactored to query balances dynamically via RPC calls.
+</problem_statement>
+
+<entity_to_refactor>
+// [Target File] crates/backend/src/entity/wallets.rs
+#[sea_orm(table_name = "wallets")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i64,
+    pub user_id: i64,                  // FK → users.id
+    pub eth_address: String,           // EVM Public Address
+    pub balance: Decimal,              // [TO BE REMOVED] Root cause of balance bugs due to redundant DB storage
+    pub created_at: DateTimeWithTimeZone,
+    pub updated_at: DateTimeWithTimeZone,
+}
+</entity_to_refactor>
+
+<strict_constraints>
+1. **Single Source of Truth (SSOT):** Remove the `balance` field from the `wallets` table/entity. User balance queries MUST be fetched dynamically via on-chain RPC calls (`get_balance`) using `ethers-rs` Provider.
+2. **Safe Available Balance Calculation:** 
+   `Available Withdrawal Funds = (On-chain Real Balance via RPC) - (Sum of Active Escrow Locked Amounts in DB)`
+3. **Relationship & Integrity Audit:** Analyze the relationships between `wallets`, `escrow`, and `wallet_transaction`. Refactor the architecture so off-chain DB records serve solely as transaction logs (history) and escrow state tracking.
+4. **Rust Compilation Guarantee:** Update all existing services (`wallet_service.rs`, `eth_escrow_service.rs`, etc.) that previously referenced `wallets.balance`. Upon task completion, run `cargo check --manifest-path crates/backend/Cargo.toml` to ensure zero compilation errors.
+</strict_constraints>
+
+<execution_plan>
+[Plan-and-Solve: 4-Phase Sequential Roadmap]
+
+- **Phase 1: Entity & Transaction Relationship Mapping**
+  - Analyze relationships between `wallets`, `escrow`, and `wallet_transaction` entities and define the Single Responsibility for each table.
+  - Verify that `wallet_transaction` functions strictly as an off-chain history log of on-chain transactions.
+
+- **Phase 2: DB Model & Migration Refactoring**
+  - Remove the `balance` column from the SeaORM `wallets` entity.
+  - Apply the migration script or update the model accordingly.
+
+- **Phase 3: RPC-based Dynamic Balance Service Implementation**
+  - Inject the `ethers-rs` `Provider` into `wallet_service.rs` to implement `get_onchain_balance` for real-time on-chain queries based on `eth_address`.
+  - Safely handle conversions between Wei (`U256`) units and human-readable Decimal/Ether representations.
+
+- **Phase 4: Dependent Services Refactoring (`eth_escrow_service.rs` & Withdrawal Guard)**
+  - Remove all legacy DB update calls mutating `wallet.balance` during escrow settlements, payouts, or withdrawals.
+  - Refactor the Withdrawal Guard to enforce: `(On-chain RPC Balance - Active Escrow Locked Amount) >= Requested Amount`.
+</execution_plan>
+
+<react_reflexion_protocol>
+Adhere strictly to the following ReAct & Reflexion self-verification cycle at each phase:
+
+- **Thought:** 
+  - Analyze current code flaws and design the refactored file/code structure for the current Phase.
+  - Identify all downstream service side-effects resulting from removing `wallets.balance`.
+- **Action:** 
+  - Execute code editing tools to modify entities, refactor services, and integrate RPC logic.
+- **Observation & Reflexion (Mandatory Verification):**
+  - [Reflexion 1]: "Are there any lingering DB `UPDATE` queries attempting to mutate wallet balances in any service logic?"
+  - [Reflexion 2]: "Is RPC network communication failure properly handled using `Result<T, E>` without panicking?"
+  - [Reflexion 3]: "Does `cargo check` compile successfully without errors?"
+</react_reflexion_protocol>
+
+<instruction>
+Begin immediately with **Phase 1 (Entity & Transaction Relationship Mapping)**.
+Output your **Thought** and analysis on how to redefine relationships between `wallets`, `escrow`, and `wallet_transaction`, and how to eliminate the `balance` column safely.
+</instruction>
+```
+
+또한 기존에 존재했던 취약점 수정
+```
+```
+
+# 16. 백엔드의 변경에 맞게 프롬프트 변경
+```
+<role>
+You are a Principal Web3 Frontend Architect and DApp Integration Specialist.
+You specialize in smart contract event/transaction handling, Web3 wallet integrations (MetaMask, WalletConnect), API state machine synchronization, and building type-safe asynchronous Web3 workflows.
+</role>
+
+<context>
+The backend escrow smart contract integration engine refactoring is now complete.
+The backend no longer initiates deposit transactions via a system hot wallet; instead, it enforces a **decentralized deposit workflow** where buyers broadcast deposits directly from their Web3 wallets.
+
+**[Backend Walkthrough Summary & Frontend Requirements]**
+1. **Updated `initiate` Response:** Calling `POST /v1/escrow` now returns `tx_params` (containing hex `to`, `value`, `data`) and an escrow status of `pending_deposit`.
+2. **Web3 Wallet Signing & Broadcasting:** The frontend must extract `tx_params` and pass it to the user's wallet via `window.ethereum.request({ method: "eth_sendTransaction", params: [txParams] })` (or equivalent ethers/viem calls).
+3. **On-Chain Deposit Verification (`verify-deposit`):** Upon broadcasting the transaction, the frontend must capture the returned `tx_hash` and dispatch a request to `POST /v1/escrow/:trade_uid/verify-deposit` so the backend can verify the transaction on-chain and update the status to `deposited`.
+</context>
+
+<strict_constraints>
+1. **Strict 3-Step Deposit Pipeline:** Enforce the explicit pipeline: `[1. Call Backend initiate] -> [2. Sign/Broadcast via Web3 Wallet & Capture tx_hash] -> [3. Call Backend verify-deposit]`.
+2. **Transaction Parameter Precision:** Ensure `tx_params` (`to`, `value`, `data`) are passed to the Web3 provider without formatting loss or hex encoding corruption.
+3. **Comprehensive Error & Rejection Handling:** Implement resilient exception traps for scenarios such as user rejection (`User rejected transaction`), insufficient gas, RPC timeouts, and transaction failures to prevent breaking the UI state.
+4. **Build Validation:** Upon task completion, run frontend compilation/typecheck commands (e.g., `cargo check` or `npm run build` / `tsc`) to guarantee zero build errors.
+</strict_constraints>
+
+<execution_plan>
+[Plan-and-Solve: 3-Phase Frontend Refactoring Roadmap]
+
+- **Phase 1: Escrow API Client & Type Definitions Update**
+  - **Target:** API service and type definition files inside `crates/frontend`.
+  - Update `initiate` API response models to include `tx_params` (`to`, `value`, `data`) and the `pending_deposit` status state.
+  - Implement API client functions and TypeScript/Rust-WASM interfaces for `POST /v1/escrow/:trade_uid/verify-deposit`.
+
+- **Phase 2: Web3 Provider & Deposit Pipeline Integration**
+  - **Target:** Wallet provider module and escrow checkout components/services inside `crates/frontend`.
+  - Wire the payment flow so that after calling `initiate`, the returned `tx_params` are immediately passed to the Web3 Provider (`window.ethereum` / `ethers.js` / `viem`) to broadcast the transaction.
+  - Pipeline the handler to capture the resulting `tx_hash` and trigger `POST /v1/escrow/:trade_uid/verify-deposit`.
+
+- **Phase 3: UI State Machine & UX Error Handling Refactoring**
+  - **Target:** Escrow checkout UI components and state handlers.
+  - Implement state visualizers for `pending_deposit` ("Awaiting Wallet Signature" -> "Verifying On-Chain Deposit").
+  - Add toast notifications/modal states for user transaction rejections and network error recovery.
+</execution_plan>
+
+<react_reflexion_protocol>
+Adhere strictly to the following ReAct & Reflexion self-verification cycle at each phase:
+
+- **Thought:** 
+  - Analyze the integration gap between backend walkthrough requirements and current frontend code.
+  - Design the data flow for Web3 wallet signing and the two-step API verification pipeline.
+- **Action:** 
+  - Execute code modification tools to update frontend API clients, wallet providers, and UI components.
+- **Observation & Reflexion (Mandatory Verification):**
+  - [Reflexion 1]: "Are `tx_params` passed to the Web3 provider without hex encoding corruption?"
+  - [Reflexion 2]: "Does the pipeline automatically trigger `verify-deposit` after capturing the `tx_hash`?"
+  - [Reflexion 3]: "Does the frontend compile cleanly with zero type/build errors?"
+</react_reflexion_protocol>
+
+<instruction>
+Begin immediately with **Phase 1 (Escrow API Client & Type Definitions Update)**.
+Output your initial **Thought** and **Action** detailing the files to modify in `crates/frontend` and the updated API type definitions.
+</instruction>
 ```

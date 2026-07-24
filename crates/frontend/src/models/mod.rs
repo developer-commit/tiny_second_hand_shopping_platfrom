@@ -6,3 +6,4 @@ pub mod wallet_model;
 pub mod product_model;
 pub mod escrow_model;
 pub mod notification_store;
+pub mod chat_store;

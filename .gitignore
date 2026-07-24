@@ -97,3 +97,8 @@ temp/
 
 # 저작권 및 보안 규정 참조 파일
 ANSSI_Rust_Secure_Programming_Rules.md
+
+.venv/
+**/.venv/
+
+*.png

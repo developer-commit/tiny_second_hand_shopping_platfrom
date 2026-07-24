@@ -1,0 +1,19 @@
+# Dockerfile.test
+FROM rust:latest
+
+# 테스트에 필요한 시스템 패키지 설치
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    protobuf-compiler \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 전체 소스 코드 복사
+COPY . .
+
+# 테스트 실행 명령어 (기본값)
+CMD ["cargo", "test", "--workspace", "--", "--nocapture"]

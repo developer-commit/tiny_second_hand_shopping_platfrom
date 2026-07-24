@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # 백엔드 개발 서버 (종료되지 않고 8080 포트에서 계속 대기)
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test # Rust 빌드 환경 사용
+    volumes:
+      - ./uploads:/app/uploads
+    command: >
+      sh -c "
+      echo 'Running Sea-ORM Migrations (Refresh)...' &&
+      cargo run -p migration -- refresh -u $$DATABASE_URL &&
+      echo 'Starting Backend Server...' &&
+      cargo run -p backend"
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info,backend=debug
+      - PORT=8080
+      - DATABASE_URL=postgres://root:secret@dev-db:5432/app_dev_db
+      - REDIS_URL=redis://dev-redis:6379
+      - JWT_SECRET=super-secret-jwt-key-for-dev-only-change-in-prod
+      - AES_KEY=01234567890123456789012345678901
+      - BCH_API_URL=https://bch-api.local
+    depends_on:
+      dev-db:
+        condition: service_healthy
+      dev-redis:
+        condition: service_started
+    networks:
+      - dev_network
+
+  dev-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: app_dev_db
+    ports:
+      - "5432:5432" # 로컬 DB GUI 도구(DBeaver 등) 접속용
+    # 영구 볼륨 제거 & tmpfs 마운트로 컨테이너 재시작 시 DB 완벽 초기화 보장
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - dev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d app_dev_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  dev-redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - dev_network
+
+networks:
+  dev_network:
+    driver: bridge

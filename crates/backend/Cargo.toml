@@ -17,7 +17,7 @@ tokio = { version = "1", features = ["full"] }
 
 # Web framework
 axum = { version = "0.7", features = ["ws", "multipart", "macros"] }
-tower-http = { version = "0.5", features = ["cors", "fs", "limit"] }
+tower-http = { version = "0.5", features = ["cors", "fs", "limit", "set-header"] }
 tower = { version = "0.4" }
 
 # Database ORM
@@ -42,8 +42,23 @@ redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
 tokio-cron-scheduler = "0.10"
 
 # Validation & Utils
+lettre = { version = "0.11", features = ["tokio1", "tokio1-native-tls"] }
 validator = { workspace = true }
 uuid = { version = "1", features = ["v4", "serde"] }
 dotenvy = "0.15"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 async-trait = "0.1"
+sqids = "0.4.2"
+infer = "0.22.0"
+
+ethers = "2.0" # For ethereum interaction
+futures-util = "0.3.33"
+eyre = "0.6.12"
+hex = "0.4.3"
+
+[dev-dependencies]
+mockall = "0.15.0"
+sea-orm = { version = "1", features = ["mock"] }
+rust_decimal_macros = "1.40.0"
+
+

@@ -14,9 +14,15 @@ pub struct Model {
     pub product_id: i64,
     pub buyer_id: i64,
     pub seller_id: i64,
+    pub currency: String,
     pub amount: Decimal,
     pub platform_fee: Decimal,          // 프론트에 노출 금지 (수수료 정보 은닉)
     pub status: String,
+    
+    // ETH Specific fields
+    pub blockchain_tx_hash: Option<String>, 
+    pub contract_trade_id: Option<i64>,     
+    
     pub auto_confirm_at: Option<DateTimeWithTimeZone>,
     pub dispute_reason: Option<String>,
     pub created_at: DateTimeWithTimeZone,
@@ -46,6 +52,7 @@ impl TryFrom<Model> for SafeTradeStatusRes {
 
     fn try_from(m: Model) -> Result<Self, Self::Error> {
         let step = match m.status.as_str() {
+            "pending_deposit" => TradeStep::PendingDeposit,
             "deposited" => TradeStep::Deposited,
             "received"  => TradeStep::Received,
             "disputed"  => TradeStep::Disputed,
@@ -53,12 +60,17 @@ impl TryFrom<Model> for SafeTradeStatusRes {
             "refunded"  => TradeStep::Refunded,
             _           => TradeStep::Deposited,
         };
+        let currency_enum = match m.currency.as_str() {
+            "ETH" => shared::dto::common_dto::Currency::ETH,
+            _ => shared::dto::common_dto::Currency::BCH,
+        };
         Ok(SafeTradeStatusRes {
             trade_uid: obfuscate(m.id)?,
             item_uid: obfuscate(m.product_id)?,
             buyer_uid: obfuscate(m.buyer_id)?,
             seller_uid: obfuscate(m.seller_id)?,
-            locked_funds: m.amount.try_into().unwrap_or(0.0),
+            currency: currency_enum,
+            locked_funds: m.amount.to_string(), // String for U256
             step,
             auto_finalize_deadline: m.auto_confirm_at.map(|t| t.to_rfc3339()),
             created_at: m.created_at.to_rfc3339(),

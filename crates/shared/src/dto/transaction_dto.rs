@@ -35,6 +35,8 @@ pub struct WalletStateRes {
     pub public_address: String,      // BCH 입금용 CashAddr 주소 (공개)
     pub available_balance: f64,      // DB: balance
     pub locked_in_escrow: f64,       // 에스크로로 묶인 금액 (계산값)
+    #[serde(default)]
+    pub eth_balance: f64,            // ETH 잔액
 }
 
 /// [Request] POST /wallet/withdraw — 출금 요청
@@ -59,4 +61,24 @@ pub struct TxHistoryItemRes {
     pub blockchain_hash: Option<String>, // DB: tx_hash
     pub process_status: TxStatus,    // DB: status
     pub timestamp: String,           // DB: created_at
+}
+
+/// [Request] POST /wallet/eth/withdraw — ETH 출금 요청
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct EthWithdrawReq {
+    #[validate(length(min = 40, max = 42))]
+    pub destination_eth: String,     // 외부 ETH 주소
+    #[validate(range(min = 0.000_01))]
+    pub amount_eth: f64,
+    #[validate(length(min = 6, max = 8))]
+    pub otp_token: String,           // 2FA OTP 코드
+}
+
+/// BTC wallet placeholder — NOT active, future expansion only
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BtcWalletInfo {
+    /// Always "coming_soon" — BTC not yet supported
+    pub status: String,
+    /// Placeholder address — never used for real transactions
+    pub placeholder_address: String,
 }

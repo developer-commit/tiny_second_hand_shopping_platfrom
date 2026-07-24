@@ -28,6 +28,10 @@ components:
         display_name:
           type: string
           description: "유저 닉네임 (DB username 숨김)"
+        bio:
+          type: string
+          nullable: true
+          description: "유저 소개"
         reliability_index:
           type: number
           format: float
@@ -35,6 +39,17 @@ components:
         require_otp:
           type: boolean
           description: "2FA 활성화 여부 (DB is_2fa_enabled 숨김)"
+        contact_email:
+          type: string
+          nullable: true
+          description: "이메일 주소"
+        account_status:
+          type: string
+          description: "계정 상태 (active/dormant/suspended)"
+        joined_at:
+          type: string
+          format: date-time
+          description: "가입일"
 
     ItemDetailRes:
       type: object
@@ -45,6 +60,11 @@ components:
         owner_uid:
           type: string
           description: "난독화된 판매자 식별자"
+        seller_trust_score:
+          type: number
+          format: float
+          nullable: true
+          description: "판매자 신뢰도"
         heading:
           type: string
           description: "상품 제목 (DB title 숨김)"
@@ -55,6 +75,10 @@ components:
           type: number
           format: float
           description: "요구 가격 (DB price 숨김)"
+        currency:
+          type: string
+          enum: [BCH, ETH]
+          description: "상품 결제 화폐"
         group_category:
           type: string
           description: "상품 카테고리 (DB category 숨김)"
@@ -73,13 +97,46 @@ components:
           type: array
           items:
             type: string
+        listed_at:
+          type: string
+          format: date-time
+          description: "상품 등록일"
+
+    ItemSummaryRes:
+      type: object
+      properties:
+        item_uid:
+          type: string
+        heading:
+          type: string
+        asking_price:
+          type: number
+          format: float
+        currency:
+          type: string
+          enum: [BCH, ETH]
+        thumbnail_url:
+          type: string
+          nullable: true
+        current_state:
+          type: string
+          enum: [on_sale, reserved, sold]
+        hit_count:
+          type: integer
+        listed_at:
+          type: string
+          format: date-time
 
     WalletStateRes:
       type: object
       properties:
         public_address:
           type: string
-          description: "입금용 외부 공개 주소"
+          description: "BCH 입금용 외부 공개 주소"
+        eth_address:
+          type: string
+          nullable: true
+          description: "ETH 입금용 외부 공개 주소"
         available_balance:
           type: number
           format: float
@@ -88,6 +145,10 @@ components:
           type: number
           format: float
           description: "안전결제(에스크로)로 묶인 금액"
+        eth_balance:
+          type: number
+          format: float
+          description: "ETH 잔액"
 
     SafeTradeStatusRes:
       type: object
@@ -98,10 +159,12 @@ components:
         item_uid:
           type: string
           description: "연관된 상품 식별자"
+        currency:
+          type: string
+          enum: [BCH, ETH]
         locked_funds:
-          type: number
-          format: float
-          description: "예치된 금액 (DB amount 숨김)"
+          type: string
+          description: "예치된 금액 (문자열 타입으로 큰 수 정밀도 보장, DB amount 숨김)"
         step:
           type: string
           enum: [deposited, received, disputed, settled, refunded]
@@ -109,12 +172,41 @@ components:
         auto_finalize_deadline:
           type: string
           format: date-time
+          nullable: true
           description: "자동 수령 확정 기한 (DB auto_confirm_at 숨김)"
+        buyer_uid:
+          type: string
+        seller_uid:
+          type: string
+        created_at:
+          type: string
+          format: date-time
 
 paths:
   # ==========================================
   # Module 1. Auth & Users
   # ==========================================
+  /auth/sendcode:
+    post:
+      tags: [Auth]
+      summary: 인증코드 발송
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, contact_email, contact_phone, verification_code]
+              properties:
+                account_id: { type: string }
+                contact_email: { type: string, nullable: true }
+                contact_phone: { type: string, nullable: true }
+                verification_code: { type: string }
+      responses:
+        '201':
+          description: Created
+
   /auth/signup:
     post:
       tags: [Auth]
@@ -130,8 +222,8 @@ paths:
               properties:
                 account_id: { type: string }
                 secret_key: { type: string }
-                contact_email: { type: string }
-                contact_phone: { type: string }
+                contact_email: { type: string, nullable: true }
+                contact_phone: { type: string, nullable: true }
                 verification_code: { type: string }
       responses:
         '201':
@@ -173,6 +265,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfileRes'
+    patch:
+      tags: [Users]
+      summary: 내 프로필 수정
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name: { type: string }
+                bio: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  /users/me/2fa/setup:
+    post:
+      tags: [Users]
+      summary: 2FA 설정 요청 (QR 코드용 Secret 반환)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret_key: { type: string }
+                  qr_code_url: { type: string }
+
+  /users/me/2fa/enable:
+    post:
+      tags: [Users]
+      summary: 2FA 활성화 승인
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                otp_token: { type: string }
+      responses:
+        '200':
+          description: 2FA 활성화 성공
 
   # ==========================================
   # Module 2 & 3. Products & Search
@@ -200,7 +338,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ItemDetailRes'
+                  $ref: '#/components/schemas/ItemSummaryRes'
     post:
       tags: [Products]
       summary: 상품 등록
@@ -214,11 +352,54 @@ paths:
                 heading: { type: string }
                 detail_body: { type: string }
                 asking_price: { type: number, format: float }
+                currency: { type: string, enum: [BCH, ETH] }
                 group_category: { type: string }
                 item_tags: { type: array, items: { type: string } }
+                image_urls: { type: array, items: { type: string } }
       responses:
         '201':
           description: Created
+
+  /products/{item_uid}:
+    get:
+      tags: [Products]
+      summary: 상품 단건 상세 조회
+      security: []
+      parameters:
+        - in: path
+          name: item_uid
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDetailRes'
+    put:
+      tags: [Products]
+      summary: 상품 정보 수정
+      parameters:
+        - in: path
+          name: item_uid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                heading: { type: string, nullable: true }
+                detail_body: { type: string, nullable: true }
+                asking_price: { type: number, format: float, nullable: true }
+                group_category: { type: string, nullable: true }
+                item_tags: { type: array, items: { type: string }, nullable: true }
+      responses:
+        '200':
+          description: OK
 
   /products/{item_uid}/status:
     patch:
@@ -258,6 +439,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/WalletStateRes'
 
+  /wallet/history:
+    get:
+      tags: [Wallet]
+      summary: 내 지갑 입출금 내역 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    movement_type: { type: string }
+                    amount: { type: number, format: float }
+                    fee_deducted: { type: number, format: float }
+                    blockchain_hash: { type: string, nullable: true }
+                    process_status: { type: string }
+                    timestamp: { type: string, format: date-time }
+
   /wallet/withdraw:
     post:
       tags: [Wallet]
@@ -272,6 +474,25 @@ paths:
               properties:
                 destination_address: { type: string }
                 amount_bch: { type: number, format: float }
+                otp_token: { type: string, description: "2FA OTP 코드" }
+      responses:
+        '200':
+          description: 출금 요청 성공
+
+  /wallet/eth/withdraw:
+    post:
+      tags: [Wallet]
+      summary: 외부 ETH 지갑으로 출금 (네트워크 수수료 계산 및 2FA 필수)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [destination_eth, amount_eth, otp_token]
+              properties:
+                destination_eth: { type: string }
+                amount_eth: { type: number, format: float }
                 otp_token: { type: string, description: "2FA OTP 코드" }
       responses:
         '200':
@@ -295,6 +516,23 @@ paths:
       responses:
         '201':
           description: 예치 성공
+
+  /escrow/{trade_uid}:
+    get:
+      tags: [Escrow]
+      summary: 에스크로 거래 상태 조회
+      parameters:
+        - in: path
+          name: trade_uid
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SafeTradeStatusRes'
 
   /escrow/{trade_uid}/confirm:
     post:
@@ -357,6 +595,7 @@ paths:
                   description: "평점 (DB rating 숨김)"
                 feedback:
                   type: string
+                  nullable: true
                   description: "리뷰 내용 (DB comment 숨김)"
       responses:
         '201':
@@ -388,6 +627,99 @@ paths:
           description: 신고 접수 완료
 
   # ==========================================
+  # Module 4. Chat System
+  # ==========================================
+  /chat/rooms:
+    post:
+      tags: [Chat]
+      summary: 상품에 대한 채팅방 생성 또는 기존 방 조회
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [item_uid]
+              properties:
+                item_uid: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room_uid: { type: string }
+
+  /chat/rooms/{room_uid}/history:
+    get:
+      tags: [Chat]
+      summary: 채팅 내역 조회
+      parameters:
+        - in: path
+          name: room_uid
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    sender_uid: { type: string }
+                    message: { type: string }
+                    created_at: { type: string, format: date-time }
+
+  /chat/ws:
+    get:
+      tags: [Chat]
+      summary: 채팅 웹소켓 연결 (Upgrade)
+      responses:
+        '101':
+          description: Switching Protocols
+
+  # ==========================================
+  # Module 3. Notifications
+  # ==========================================
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: 내 알림 목록 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    noti_uid: { type: string }
+                    type: { type: string }
+                    message: { type: string }
+                    is_read: { type: boolean }
+                    created_at: { type: string, format: date-time }
+
+  /notifications/{noti_uid}/read:
+    patch:
+      tags: [Notifications]
+      summary: 알림 읽음 처리
+      parameters:
+        - in: path
+          name: noti_uid
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  # ==========================================
   # Module 7. Admin
   # ==========================================
   /admin/stats:
@@ -405,3 +737,134 @@ paths:
                   total_accumulated_bch: 
                     type: number
                     format: float
+                  total_users: { type: integer }
+                  active_listings: { type: integer }
+                  active_escrows: { type: integer }
+                  pending_disputes: { type: integer }
+                  pending_reports: { type: integer }
+                  last_calculated_at: { type: string, format: date-time }
+
+  /admin/escrow/force-settle:
+    post:
+      tags: [Admin]
+      summary: 분쟁 상태 에스크로 강제 정산 (관리자 전용)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trade_uid, settle_to, reason]
+              properties:
+                trade_uid: { type: string }
+                settle_to:
+                  type: string
+                  enum: [buyer, seller]
+                  description: "강제 정산 대상 (buyer: 환불, seller: 정산)"
+                reason: { type: string, description: "관리자 감사 로그용 강제 정산 사유" }
+      responses:
+        '200':
+          description: OK
+
+  /admin/users/{user_uid}/ban:
+    post:
+      tags: [Admin]
+      summary: 사용자 밴 (관리자 전용)
+      parameters:
+        - in: path
+          name: user_uid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  /admin/products/{item_uid}/hide:
+    post:
+      tags: [Admin]
+      summary: 상품 숨김 (관리자 전용)
+      parameters:
+        - in: path
+          name: item_uid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: OK
+
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: 관리자 신고 목록 조회
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        report_uid: { type: string }
+                        target_item_uid: { type: string }
+                        reporter_uid: { type: string }
+                        cause: { type: string }
+                        status: { type: string }
+                        submitted_at: { type: string, format: date-time }
+
+  # ==========================================
+  # Module 8. File Uploads
+  # ==========================================
+  /uploads:
+    post:
+      tags: [Uploads]
+      summary: 이미지 파일 직접 호스팅 업로드
+      description: "로컬 스토리지에 이미지를 저장하고 외부 접근 가능한 호스팅 URL을 반환합니다."
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: "업로드할 이미지 파일 (최대 5MB, JPEG/PNG/GIF/WEBP)"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  image_url:
+                    type: string
+                    description: "호스팅된 정적 이미지 파일의 URL"
+        '400':
+          description: 잘못된 요청 형식 또는 미지원 포맷
+        '413':
+          description: 페이로드(5MB) 초과

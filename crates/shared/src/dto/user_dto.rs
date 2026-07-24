@@ -13,6 +13,18 @@ use crate::types::OpaqueId;
 
 // ─── Auth Request DTOs ──────────────────────────────────────────────────────
 
+/// [Request] POST /auth/sendcode — 인증메일 전송
+/// openapi: account_id(username),  contact_email(email), contact_phone(phone)
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct SendCodeReq {
+    #[validate(length(min = 3, max = 50))]
+    pub account_id: String,       // DB: username
+    #[validate(email)]
+    pub contact_email: Option<String>,  // DB: email
+    #[validate(length(min = 10, max = 20))]
+    pub contact_phone: Option<String>,  // DB: phone
+}
+
 /// [Request] POST /auth/signup — 회원가입
 /// openapi: account_id(username), secret_key(password), contact_email(email), contact_phone(phone)
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
@@ -42,6 +54,13 @@ pub struct AuthTokenRes {
     pub access_token: String,  // JWT Bearer Token
     pub token_type: String,    // "Bearer"
     pub expires_in: u64,       // 초 단위 만료 시간
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "status", content = "data")]
+pub enum LoginResponse {
+    Success(AuthTokenRes),
+    Requires2FA { user_uid: crate::types::OpaqueId },
 }
 
 // ─── User Profile DTOs ──────────────────────────────────────────────────────

@@ -1,0 +1,2 @@
+DATABASE_URL="postgres://bch_user:bch_password@localhost:5432/bch_marketplace" PORT=8080 LEPTOS_SITE_ADDR=0.0.0.0:8080 APP_ENV=production JWT_SECRET=0123456789abcdef0123456789abcdef ./target/release/migration
+DATABASE_URL="postgres://bch_user:bch_password@localhost:5432/bch_marketplace" PORT=8080 LEPTOS_SITE_ROOT=./crates/frontend/dist/ LEPTOS_SITE_ADDR=0.0.0.0:8080 APP_ENV=production JWT_SECRET=0123456789abcdef0123456789abcdef ./target/release/backend

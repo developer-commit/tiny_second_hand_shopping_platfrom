@@ -4,6 +4,7 @@ members = [
     "crates/shared",
     "crates/frontend",
     "crates/backend",
+    "crates/migration",
 ]
 
 [workspace.dependencies]

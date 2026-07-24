@@ -28,6 +28,7 @@ pub struct ChatRoomRes {
     pub room_uid: OpaqueId,          // DB: id (난독화)
     pub room_kind: RoomKind,         // DB: room_type
     pub item_uid: Option<OpaqueId>,  // DB: product_id (난독화)
+    pub product_name: Option<String>,
     pub participant_uids: Vec<OpaqueId>, // chat_participants 조인
     pub created_at: String,
 }

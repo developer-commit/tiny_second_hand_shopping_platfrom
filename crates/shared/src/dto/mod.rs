@@ -12,3 +12,5 @@ pub mod chat_dto;
 pub mod noti_dto;
 pub mod report_dto;
 pub mod admin_dto;
+pub mod error_dto;
+pub mod common_dto;

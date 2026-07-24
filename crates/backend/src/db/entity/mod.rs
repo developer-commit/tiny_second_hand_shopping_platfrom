@@ -10,6 +10,7 @@ pub mod product_tag;
 pub mod escrow_trade;
 pub mod review;
 pub mod chat_room;
+pub mod chat_participant;
 pub mod chat_message;
 pub mod report;
 pub mod notification;

@@ -14,6 +14,39 @@ leptos_router = { version = "0.7" }
 leptos_meta = { version = "0.7" }
 console_error_panic_hook = "0.1"
 wasm-bindgen = "0.2"
+gloo-net = "0.5"
+
+# WASM / Browser API
+js-sys = "0.3"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "Element",
+    "HtmlInputElement",
+    "HtmlElement",
+    "Storage",
+    "KeyboardEvent",
+    "Event",
+    "EventTarget",
+    "File",
+    "FileList",
+    "FormData",
+    "Headers",
+    "Request",
+    "RequestInit",
+    "Response",
+    "WebSocket",
+    "MessageEvent",
+    "CloseEvent",
+    "BinaryType",
+    "Location",
+    "History",
+    "Performance",
+    "console",
+    "Clipboard",
+    "Navigator",
+] }
+wasm-bindgen-futures = "0.4.76"
 
 
 [[bin]]

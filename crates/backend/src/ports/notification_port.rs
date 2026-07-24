@@ -3,6 +3,8 @@
 
 use async_trait::async_trait;
 use thiserror::Error;
+#[cfg(test)]
+use mockall::automock;
 
 #[derive(Debug, Error)]
 pub enum NotificationPortError {
@@ -24,6 +26,7 @@ pub struct CreateNotificationCmd {
 /// 알림 Port
 ///
 /// 구현체: NotificationService (DB 저장) + PubSubPort (실시간 발송)
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait NotificationPort: Send + Sync {
     /// 알림을 DB에 저장하고 Redis Pub/Sub으로 발송

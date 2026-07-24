@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # 테스트 실행 컨테이너
+  test-runner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.test
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgres://root:secret@test-db:5432/app_test_db
+      - REDIS_URL=redis://test-redis:6379
+      - JWT_SECRET=test_jwt_secret_key
+      - AES_KEY=01234567890123456789012345678901
+      - BCH_API_URL=https://bch-api.local
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-redis:
+        condition: service_started
+    networks:
+      - test_network
+
+  # 테스트 전용 PostgreSQL (데이터가 유실돼도 상관없는 격리 환경)
+  test-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: app_test_db
+    networks:
+      - test_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d app_test_db"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  # 테스트 전용 Redis
+  test-redis:
+    image: redis:7-alpine
+    networks:
+      - test_network
+
+networks:
+  test_network:
+    driver: bridge

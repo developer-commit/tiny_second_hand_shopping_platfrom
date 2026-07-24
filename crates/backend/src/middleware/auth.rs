@@ -25,9 +25,41 @@ pub async fn authenticate(
     mut request: Request,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    todo!(
-        "Authorization 헤더 추출 → Bearer 파싱 → verify_token(&token, &state.jwt_secret) \
-        → Claims.status 확인(dormant/suspended → 403) \
-        → request.extensions_mut().insert(claims) → next.run(request).await"
-    )
+    let auth_header = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|val| val.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "));
+
+    let query_token = request
+        .uri()
+        .query()
+        .unwrap_or("")
+        .split('&')
+        .find(|q| q.starts_with("token="))
+        .map(|q| q.trim_start_matches("token="));
+
+    let token = match auth_header.or(query_token) {
+        Some(t) => t,
+        None => {
+            tracing::warn!("Missing or invalid Authorization header or token query parameter");
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+
+    let claims = match verify_token(token, &state.jwt_secret) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!("Token verification failed: {:?}", e);
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+
+    if claims.status == "dormant" || claims.status == "suspended" {
+        tracing::warn!("Access denied for user status: {}", claims.status);
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    request.extensions_mut().insert(claims);
+    Ok(next.run(request).await)
 }

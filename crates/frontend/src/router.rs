@@ -19,28 +19,32 @@ use crate::pages::{
     notifications::NotificationsPage,
     admin::AdminPage,
 };
+use crate::components::layout::AppShell;
 
 #[component]
 pub fn AppRouter() -> impl IntoView {
     view! {
         <Router>
-            <Routes fallback=|| view! { <p>"404 — 페이지를 찾을 수 없습니다."</p> }>                // ─── 공개 라우트 ─────────────────────────────────────────────────────────
-                <Route path=path!("/") view=HomePage/>
-                <Route path=path!("/login") view=LoginPage/>
-                <Route path=path!("/signup") view=SignupPage/>
-                // ─── 인증 필요 라우트 ────────────────────────────────────────────────
-                <Route path=path!("/mypage") view=MyPage/>
-                <Route path=path!("/wallet") view=WalletPage/>
-                <Route path=path!("/wallet/withdraw") view=WalletPage/>
-                <Route path=path!("/products/new") view=ProductNewPage/>
-                <Route path=path!("/products/:item_uid") view=ProductDetailPage/>
-                <Route path=path!("/products/:item_uid/edit") view=ProductEditPage/>
-                <Route path=path!("/chat") view=ChatPage/>
-                <Route path=path!("/escrow/:trade_uid") view=EscrowPage/>
-                <Route path=path!("/notifications") view=NotificationsPage/>
-                // ─── 관리자 라우트 ──────────────────────────────────────────────────
-                <Route path=path!("/admin") view=AdminPage/>
-            </Routes>
+            <AppShell>
+                <Routes fallback=|| view! { <p>"404 — 페이지를 찾을 수 없습니다."</p> }>                
+                    // ─── 공개 라우트 ─────────────────────────────────────────────────────────
+                    <Route path=path!("/") view=HomePage/>
+                    <Route path=path!("/login") view=LoginPage/>
+                    <Route path=path!("/signup") view=SignupPage/>
+                    // ─── 인증 필요 라우트 ────────────────────────────────────────────────
+                    <Route path=path!("/mypage") view=MyPage/>
+                    <Route path=path!("/wallet") view=WalletPage/>
+                    <Route path=path!("/wallet/withdraw") view=WalletPage/>
+                    <Route path=path!("/products/new") view=ProductNewPage/>
+                    <Route path=path!("/products/:item_uid") view=ProductDetailPage/>
+                    <Route path=path!("/products/:item_uid/edit") view=ProductEditPage/>
+                    <Route path=path!("/chat") view=ChatPage/>
+                    <Route path=path!("/escrow/:trade_uid") view=EscrowPage/>
+                    <Route path=path!("/notifications") view=NotificationsPage/>
+                    // ─── 관리자 라우트 ──────────────────────────────────────────────────
+                    <Route path=path!("/admin") view=AdminPage/>
+                </Routes>
+            </AppShell>
         </Router>
     }
 }

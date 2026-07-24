@@ -59,14 +59,26 @@ impl std::fmt::Debug for JwtSecret {
     }
 }
 
-/// JWT 토큰 발급.
-/// AppState에서 JwtSecret을 주입받아 호출합니다.
 pub fn issue_token(claims: Claims, secret: &JwtSecret) -> Result<String, AuthError> {
-    todo!("jsonwebtoken::encode(&Header::default(), &claims, &EncodingKey::from_secret) 호출")
+    jsonwebtoken::encode(
+        &jsonwebtoken::Header::default(),
+        &claims,
+        &jsonwebtoken::EncodingKey::from_secret(secret.0.expose_secret().as_bytes()),
+    )
+    .map_err(|e| AuthError::TokenCreation(e.to_string()))
 }
 
 /// JWT 토큰 검증 및 Claims 추출.
 /// 미들웨어 auth::authenticate에서 호출합니다.
 pub fn verify_token(token: &str, secret: &JwtSecret) -> Result<Claims, AuthError> {
-    todo!("jsonwebtoken::decode::<Claims>(token, &DecodingKey::from_secret, &Validation::default()) 호출")
+    jsonwebtoken::decode::<Claims>(
+        token,
+        &jsonwebtoken::DecodingKey::from_secret(secret.0.expose_secret().as_bytes()),
+        &jsonwebtoken::Validation::default(),
+    )
+    .map(|token_data| token_data.claims)
+    .map_err(|e| match e.kind() {
+        jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::TokenExpired,
+        _ => AuthError::TokenValidation(e.to_string()),
+    })
 }

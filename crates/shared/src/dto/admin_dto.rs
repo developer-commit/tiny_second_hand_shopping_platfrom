@@ -46,3 +46,21 @@ pub struct AdminReportSummary {
     pub status: String,
     pub submitted_at: String,
 }
+
+/// [Request] POST /admin/users/{user_uid}/ban — 사용자 밴
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BanUserReq {
+    pub reason: String,
+}
+
+/// [Request] POST /admin/products/{item_uid}/hide — 상품 숨김
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HideProductReq {
+    pub reason: String,
+}
+
+/// [Response] GET /admin/reports — 신고 목록
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdminReportListRes {
+    pub reports: Vec<AdminReportSummary>,
+}

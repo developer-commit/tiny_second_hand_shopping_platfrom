@@ -9,6 +9,7 @@
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 use crate::types::OpaqueId;
+use super::common_dto::Currency;
 
 /// 상품 상태를 타입 안전하게 표현하는 Enum.
 /// String 대신 Enum을 사용하여 유효하지 않은 상태값 전달을 컴파일 타임에 차단합니다.
@@ -28,7 +29,8 @@ pub struct CreateItemReq {
     #[validate(length(min = 1, max = 5000))]
     pub detail_body: String,         // DB: description
     #[validate(range(min = 0.000_01))]
-    pub asking_price: f64,           // DB: price
+    pub asking_price: f64,           // DB: price (For ETH, may want string, but let's keep f64 for now or let frontend handle it)
+    pub currency: Currency,          // DB: currency
     #[validate(length(min = 1, max = 50))]
     pub group_category: String,      // DB: category
     pub item_tags: Vec<String>,      // DB: product_tags 테이블
@@ -59,9 +61,11 @@ pub struct UpdateItemReq {
 pub struct ItemDetailRes {
     pub item_uid: OpaqueId,          // DB: id (난독화)
     pub owner_uid: OpaqueId,         // DB: seller_id (난독화)
+    pub seller_trust_score: Option<f64>, // DB: users.trust_score
     pub heading: String,             // DB: title
     pub detail_body: String,         // DB: description
     pub asking_price: f64,           // DB: price
+    pub currency: Currency,          // DB: currency
     pub group_category: String,      // DB: category
     pub current_state: ItemState,    // DB: status
     pub hit_count: i32,              // DB: view_count
@@ -77,13 +81,14 @@ pub struct ItemSummaryRes {
     pub heading: String,
     pub asking_price: f64,
     pub thumbnail_url: Option<String>,
+    pub currency: Currency,
     pub current_state: ItemState,
     pub hit_count: i32,
     pub listed_at: String,
 }
 
 /// [Query] GET /products — 상품 목록 검색 쿼리 파라미터
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProductSearchQuery {
     pub keyword: Option<String>,
     pub group_category: Option<String>,

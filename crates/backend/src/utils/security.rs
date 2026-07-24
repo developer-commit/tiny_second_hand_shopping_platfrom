@@ -33,7 +33,9 @@ pub enum SecurityError {
 /// # 사용처
 /// DB에서 조회한 i64 PK → DTO의 OpaqueId 필드로 변환 시
 pub fn obfuscate(internal_id: i64) -> Result<String, SecurityError> {
-    todo!("Sqids::default().encode(&[internal_id as u64]) 호출 후 Ok(encoded) 반환")
+    sqids::Sqids::default()
+        .encode(&[internal_id as u64])
+        .map_err(|e| SecurityError::ObfuscationFailed(e.to_string()))
 }
 
 /// 외부 불투명 문자열을 내부 순차 ID(i64)로 역변환.
@@ -42,7 +44,11 @@ pub fn obfuscate(internal_id: i64) -> Result<String, SecurityError> {
 /// # 사용처
 /// 핸들러에서 Path 파라미터(OpaqueId)를 DB 조회용 i64로 변환 시
 pub fn deobfuscate(public_uid: &str) -> Result<i64, SecurityError> {
-    todo!("Sqids::default().decode(public_uid) 호출 후 첫 번째 값 반환")
+    let ids = sqids::Sqids::default().decode(public_uid);
+    if ids.is_empty() {
+        return Err(SecurityError::DeobfuscationFailed(public_uid.to_string()));
+    }
+    Ok(ids[0] as i64)
 }
 
 // ─── 보안 래퍼 타입 ──────────────────────────────────────────────────────────
@@ -104,13 +110,39 @@ impl std::fmt::Debug for EncryptedKey {
 
 // ─── 암호화 유틸리티 ─────────────────────────────────────────────────────────
 
+use aes_gcm::{
+    aead::{Aead, KeyInit},
+    Aes256Gcm, Nonce,
+};
+use rand::RngCore;
+
 /// AES-256-GCM으로 민감 데이터 암호화.
 /// 2FA 시크릿 키 및 지갑 개인키를 DB에 저장하기 전에 호출합니다.
 pub fn encrypt_sensitive(plaintext: &[u8], key: &[u8; 32]) -> Result<EncryptedKey, SecurityError> {
-    todo!("aes_gcm::Aes256Gcm::new(key) → encrypt_in_place → EncryptedKey::new 반환")
+    let cipher = Aes256Gcm::new(key.into());
+    let mut nonce_bytes = [0u8; 12];
+    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+    
+    let ciphertext = cipher.encrypt(nonce, plaintext)
+        .map_err(|e| SecurityError::EncryptionFailed(e.to_string()))?;
+        
+    let mut final_data = nonce_bytes.to_vec();
+    final_data.extend_from_slice(&ciphertext);
+    
+    Ok(EncryptedKey::new(final_data, "default-key-id".to_string()))
 }
 
 /// AES-256-GCM 복호화. infra 계층의 KMS 어댑터에서만 사용.
 pub fn decrypt_sensitive(encrypted: &EncryptedKey, key: &[u8; 32]) -> Result<Vec<u8>, SecurityError> {
-    todo!("aes_gcm::Aes256Gcm::new(key) → decrypt_in_place → Vec<u8> 반환")
+    let data = encrypted.ciphertext();
+    if data.len() < 12 {
+        return Err(SecurityError::InvalidKeyLength);
+    }
+    let (nonce_bytes, ciphertext) = data.split_at(12);
+    let nonce = Nonce::from_slice(nonce_bytes);
+    let cipher = Aes256Gcm::new(key.into());
+    
+    cipher.decrypt(nonce, ciphertext)
+        .map_err(|_| SecurityError::DecryptionFailed)
 }

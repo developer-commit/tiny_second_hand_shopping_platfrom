@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  anvil:
+      image: ghcr.io/foundry-rs/foundry:latest
+      container_name: escrow-anvil
+      entrypoint: ["anvil", "--host", "0.0.0.0", "--port", "8545", "--chain-id", "31337"]
+      ports:
+        - "8545:8545"
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: bch_user
+      POSTGRES_PASSWORD: bch_password
+      POSTGRES_DB: bch_marketplace
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bch_user -d bch_marketplace"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+    # ------------------------------------------------------------------
+    # [추가] DB 마이그레이션 자동 실행 후 백엔드 서버 시작
+    # ------------------------------------------------------------------
+    # cargo run 대신 컴파일된 /app/migration 바이너리 직접 실행
+    command: >
+      sh -c "
+      /app/migration refresh -u $$DATABASE_URL &&
+      /app/backend"
+    environment:
+      - DATABASE_URL=postgres://bch_user:bch_password@db:5432/bch_marketplace
+      - REDIS_URL=redis://redis:6379
+      - RUST_LOG=info
+      - LEPTOS_SITE_ROOT=/app/dist
+      - LEPTOS_SITE_ADDR=0.0.0.0:8080
+      - APP_ENV=production
+      - KMS_KEY=0123456789abcdef0123456789abcdef
+      - JWT_SECRET=0123456789abcdef0123456789abcdef
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads_data:

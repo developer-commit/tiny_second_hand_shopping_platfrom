@@ -16,6 +16,7 @@ pub struct Model {
     pub title: String,
     pub description: String,
     pub price: Decimal,
+    pub currency: String,
     pub category: String,
     pub status: String,              // "on_sale" | "reserved" | "sold"
     pub view_count: i32,
@@ -60,6 +61,7 @@ impl Model {
         self,
         images: Vec<String>,
         tags: Vec<String>,
+        seller_trust_score: Option<f64>,
     ) -> Result<ItemDetailRes, SecurityError> {
         let current_state = match self.status.as_str() {
             "on_sale"  => ItemState::OnSale,
@@ -67,12 +69,18 @@ impl Model {
             "sold"     => ItemState::Sold,
             _          => ItemState::OnSale,
         };
+        let currency_enum = match self.currency.as_str() {
+            "ETH" => shared::dto::common_dto::Currency::ETH,
+            _ => shared::dto::common_dto::Currency::BCH,
+        };
         Ok(ItemDetailRes {
             item_uid: obfuscate(self.id)?,
             owner_uid: obfuscate(self.seller_id)?,
+            seller_trust_score,
             heading: self.title,
             detail_body: self.description,
             asking_price: self.price.try_into().unwrap_or(0.0),
+            currency: currency_enum,
             group_category: self.category,
             current_state,
             hit_count: self.view_count,
