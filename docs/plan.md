@@ -1,4 +1,6 @@
-# 중고 거래 플랫폼 시스템 설계서 (System Design Specification) - 보강본
+# 중고 거래 플랫폼 
+
+https://github.com/developer-commit/tiny_second_hand_shopping_platfrom
 
 ## 0. 목표 설정 (Goal)
 * **목표**: 사용자 간 안전하고 원활한 중고 물품 거래가 가능한 C2C 플랫폼 구축
