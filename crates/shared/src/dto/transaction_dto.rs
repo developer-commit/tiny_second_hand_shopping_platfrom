@@ -39,17 +39,7 @@ pub struct WalletStateRes {
     pub eth_balance: f64,            // ETH 잔액
 }
 
-/// [Request] POST /wallet/withdraw — 출금 요청
-/// otp_token 필드로 2FA 인증을 구조적으로 강제합니다.
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct WithdrawReq {
-    #[validate(length(min = 10, max = 100))]
-    pub destination_address: String, // 외부 BCH CashAddr 주소
-    #[validate(range(min = 0.000_01))]
-    pub amount_bch: f64,
-    #[validate(length(min = 6, max = 8))]
-    pub otp_token: String,           // 2FA OTP 코드 — 없으면 출금 불가
-}
+
 
 /// [Response] 트랜잭션 내역 항목
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,11 +64,4 @@ pub struct EthWithdrawReq {
     pub otp_token: String,           // 2FA OTP 코드
 }
 
-/// BTC wallet placeholder — NOT active, future expansion only
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BtcWalletInfo {
-    /// Always "coming_soon" — BTC not yet supported
-    pub status: String,
-    /// Placeholder address — never used for real transactions
-    pub placeholder_address: String,
-}
+

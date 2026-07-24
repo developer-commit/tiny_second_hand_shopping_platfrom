@@ -47,7 +47,7 @@ impl AdminServiceTrait for AdminService {
         let reports_count = report::Entity::find().filter(report::Column::Status.eq("pending")).count(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
         
         let stats = platform_stats::Entity::find().one(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
-        let (total_accumulated_bch, last_calculated_at) = match stats {
+        let (total_accumulated_fees, last_calculated_at) = match stats {
             Some(s) => {
                 let accumulated = s.total_fee_collected
                     .try_into()
@@ -58,7 +58,7 @@ impl AdminServiceTrait for AdminService {
         };
 
         Ok(PlatformStatsRes {
-            total_accumulated_bch,
+            total_accumulated_fees,
             total_users: users_count,
             active_listings: products_count,
             active_escrows: escrows_count,

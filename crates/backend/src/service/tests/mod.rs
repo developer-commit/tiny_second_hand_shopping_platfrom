@@ -1,2 +1,2 @@
 pub mod auth_service_test;
-pub mod escrow_service_test;
+pub mod wallet_domain_test;

@@ -2,7 +2,7 @@
 // 목적: 지갑 상태 반응형 래퍼.
 
 use leptos::prelude::*;
-use shared::dto::transaction_dto::{TxHistoryItemRes, WalletStateRes, WithdrawReq, EthWithdrawReq};
+use shared::dto::transaction_dto::{TxHistoryItemRes, WalletStateRes, EthWithdrawReq};
 use gloo_net::http::Request;
 
 const API_BASE_URL: &str = "/v1";
@@ -80,25 +80,6 @@ pub async fn fetch_tx_history(token: &str) -> Result<Vec<TxHistoryItemRes>, Stri
     res.json().await.map_err(|e| e.to_string())
 }
 
-/// POST /wallet/withdraw - 출금 요청
-pub async fn withdraw(token: &str, req: WithdrawReq) -> Result<(), String> {
-    let url = format!("{}/wallet/withdraw", API_BASE_URL);
-    let res = Request::post(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .json(&req)
-        .map_err(|e| e.to_string())?
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !res.ok() {
-        let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
-        return Err(err_msg);
-    }
-
-    Ok(())
-}
 
 /// POST /wallet/eth/withdraw - ETH 출금 요청
 pub async fn eth_withdraw(token: &str, req: EthWithdrawReq) -> Result<(), String> {

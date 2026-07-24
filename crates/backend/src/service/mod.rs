@@ -6,7 +6,6 @@ pub mod auth_service;
 pub mod user_service;
 pub mod product_service;
 pub mod wallet_service;
-pub mod escrow_service;
 pub mod chat_service;
 pub mod review_service;
 pub mod report_service;
@@ -15,7 +14,7 @@ pub mod notification_service;
 pub mod traits;
 
 pub mod eth_escrow_service;
-pub mod escrow_dispatcher;
 
 #[cfg(test)]
 pub mod tests;
+pub mod wallet_domain;

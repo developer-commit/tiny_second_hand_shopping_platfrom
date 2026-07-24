@@ -62,7 +62,7 @@ impl TryFrom<Model> for SafeTradeStatusRes {
         };
         let currency_enum = match m.currency.as_str() {
             "ETH" => shared::dto::common_dto::Currency::ETH,
-            _ => shared::dto::common_dto::Currency::BCH,
+            _ => shared::dto::common_dto::Currency::UNSUPPORTED,
         };
         Ok(SafeTradeStatusRes {
             trade_uid: obfuscate(m.id)?,

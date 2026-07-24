@@ -10,21 +10,3 @@ use serde::{Deserialize, Serialize};
 /// 내부 DB의 `i64` primary key를 절대 직접 사용하지 않으며,
 /// backend의 `security::obfuscate` / `deobfuscate` 함수를 통해서만 변환합니다.
 pub type OpaqueId = String;
-
-/// BCH 금액을 표현하는 타입. f64 대신 Decimal을 사용해야 하지만
-/// frontend/shared 계층에서의 표현을 위해 f64 래퍼를 제공합니다.
-/// (백엔드 DB/계산 레이어는 rust_decimal을 사용)
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, PartialOrd)]
-pub struct BchAmount(pub f64);
-
-impl BchAmount {
-    pub fn value(&self) -> f64 {
-        self.0
-    }
-}
-
-impl From<f64> for BchAmount {
-    fn from(v: f64) -> Self {
-        BchAmount(v)
-    }
-}

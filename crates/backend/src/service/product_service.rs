@@ -75,7 +75,7 @@ impl ProductServiceTrait for ProductService {
             
             let currency_enum = match p.currency.as_str() {
                 "ETH" => shared::dto::common_dto::Currency::ETH,
-                _ => shared::dto::common_dto::Currency::BCH,
+                _ => shared::dto::common_dto::Currency::UNSUPPORTED,
             };
             
             result.push(ItemSummaryRes {

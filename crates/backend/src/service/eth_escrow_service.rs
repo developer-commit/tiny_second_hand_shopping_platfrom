@@ -15,6 +15,7 @@ pub struct EthEscrowService {
     db: DatabaseConnection,
     notification_port: Arc<dyn NotificationPort>,
     blockchain_manager: Arc<crate::utils::blockchain::BlockchainManager>,
+    wallet_port: Arc<dyn crate::ports::wallet_port::EvmWalletPort>,
     contract_address: Address,
 }
 
@@ -23,12 +24,14 @@ impl EthEscrowService {
         db: DatabaseConnection,
         notification_port: Arc<dyn NotificationPort>,
         blockchain_manager: Arc<crate::utils::blockchain::BlockchainManager>,
+        wallet_port: Arc<dyn crate::ports::wallet_port::EvmWalletPort>,
         contract_address: Address,
     ) -> Self {
         EthEscrowService {
             db,
             notification_port,
             blockchain_manager,
+            wallet_port,
             contract_address,
         }
     }
@@ -88,8 +91,18 @@ impl EscrowServiceTrait for EthEscrowService {
             
         let required_amount = p.price;
         
-        // For simplicity in this ETH migration, we assume the ETH is sent via the smart contract
-        // transaction. So we record the deposit in the DB, and interact with the contract.
+        let amount_str = required_amount.to_string();
+        let required_amount_f64 = rust_decimal::prelude::ToPrimitive::to_f64(&required_amount).unwrap_or(0.0);
+        
+        // Check sufficient funds before initiation
+        crate::service::wallet_domain::WalletDomain::verify_sufficient_funds(
+            &txn, 
+            self.wallet_port.clone(),
+            buyer_id,
+            "ETH",
+            required_amount_f64,
+            0.0
+        ).await.map_err(|e| EscrowServiceError::InsufficientBalance)?;
         
         let auto_confirm = chrono::Utc::now() + chrono::Days::new(3);
         
@@ -172,6 +185,17 @@ impl EscrowServiceTrait for EthEscrowService {
         let amount_str = trade.amount.to_string();
         let amount_u256 = ethers::utils::parse_ether(&amount_str)
             .map_err(|_| EscrowServiceError::Internal("Invalid amount format".to_string()))?;
+
+        // Check sufficient funds before deposit
+        let required_amount_f64 = rust_decimal::prelude::ToPrimitive::to_f64(&trade.amount).unwrap_or(0.0);
+        crate::service::wallet_domain::WalletDomain::verify_sufficient_funds(
+            &txn, 
+            self.wallet_port.clone(),
+            buyer_id,
+            "ETH",
+            required_amount_f64,
+            0.0
+        ).await.map_err(|e| EscrowServiceError::InsufficientBalance)?;
 
         // INTERACT WITH SMART CONTRACT / EVM
         let dummy_privkey = std::env::var("MOCK_USER_PRIVATE_KEY")

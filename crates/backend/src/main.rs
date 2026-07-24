@@ -85,25 +85,15 @@ async fn main() {
     let notification_service_arc: std::sync::Arc<dyn crate::service::traits::NotificationServiceTrait> = notification_service_impl.clone();
     let notification_port_arc: std::sync::Arc<dyn crate::ports::notification_port::NotificationPort> = notification_service_impl;
     
-    let bch_escrow_service: std::sync::Arc<dyn crate::service::traits::EscrowServiceTrait> = std::sync::Arc::new(crate::service::escrow_service::EscrowService::new(
-        db.clone_conn(),
-        notification_port_arc.clone(),
-    ));
-
     use ethers::core::types::Address;
     let contract_address: Address = std::env::var("ETH_CONTRACT_ADDRESS").unwrap_or_else(|_| "0x0000000000000000000000000000000000000000".to_string()).parse().expect("Invalid ETH_CONTRACT_ADDRESS");
     
-    let eth_escrow_service: std::sync::Arc<dyn crate::service::traits::EscrowServiceTrait> = std::sync::Arc::new(crate::service::eth_escrow_service::EthEscrowService::new(
+    let escrow_service_arc: std::sync::Arc<dyn crate::service::traits::EscrowServiceTrait> = std::sync::Arc::new(crate::service::eth_escrow_service::EthEscrowService::new(
         db.clone_conn(),
         notification_port_arc.clone(),
         blockchain_manager_arc.clone(),
+        wallet_adapter.clone(),
         contract_address,
-    ));
-
-    let escrow_service_arc: std::sync::Arc<dyn crate::service::traits::EscrowServiceTrait> = std::sync::Arc::new(crate::service::escrow_dispatcher::EscrowDispatcherService::new(
-        db.clone_conn(),
-        bch_escrow_service,
-        eth_escrow_service,
     ));
     
     let chat_service_arc: std::sync::Arc<dyn crate::service::traits::ChatServiceTrait> = std::sync::Arc::new(crate::service::chat_service::ChatService::new(db.clone_conn(), pubsub_adapter.clone(), notification_service_arc.clone()));

@@ -34,6 +34,10 @@ async fn create_chat_room(token: &str, req: &CreateChatRoomReq) -> Result<ChatRo
         .map_err(|e| e.to_string())?;
 
     if !res.ok() {
+        let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
+        if let Ok(api_err) = err_res {
+            return Err(api_err.message);
+        }
         return Err("채팅방 생성 실패".into());
     }
     res.json().await.map_err(|e| e.to_string())
@@ -81,6 +85,7 @@ pub fn ProductDetailPage() -> impl IntoView {
     let item_uid = move || params.with(|p| p.get("item_uid").unwrap_or_default());
     let auth_store = expect_context::<AuthStore>();
     let token = Signal::derive(move || auth_store.bearer_header().unwrap_or_default());
+    let current_user_uid = Signal::derive(move || auth_store.current_user.get().map(|u| u.user_uid));
     let navigate = use_navigate();
 
     let product = LocalResource::new(move || {
@@ -91,10 +96,12 @@ pub fn ProductDetailPage() -> impl IntoView {
         }
     });
 
+    let chat_error = RwSignal::new(Option::<String>::None);
     let chat_action = Action::new_local(move |req: &CreateChatRoomReq| {
         let t = token.get();
         let req_clone = req.clone();
         async move {
+            chat_error.set(None);
             if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
             create_chat_room(&t, &req_clone).await
         }
@@ -124,8 +131,11 @@ pub fn ProductDetailPage() -> impl IntoView {
 
     let nav1 = navigate.clone();
     Effect::new(move |_| {
-        if let Some(Ok(res)) = chat_action.value().get() {
-            nav1(&format!("/chat?room_uid={}", res.room_uid), Default::default());
+        if let Some(res) = chat_action.value().get() {
+            match res {
+                Ok(room) => nav1(&format!("/chat?room_uid={}", room.room_uid), Default::default()),
+                Err(e) => chat_error.set(Some(e)),
+            }
         }
     });
 
@@ -154,6 +164,7 @@ pub fn ProductDetailPage() -> impl IntoView {
                         Ok(item) => {
                             let item = item.clone();
                             let is_available = matches!(item.current_state, ItemState::OnSale);
+                            let is_owner = current_user_uid.get() == Some(item.owner_uid.clone());
                             
                             view! {
                                 <div style="display: flex; flex-direction: column; gap: 2rem;">
@@ -197,11 +208,17 @@ pub fn ProductDetailPage() -> impl IntoView {
                                             <AppButton
                                                 variant=ButtonVariant::Secondary
                                                 loading=chat_action.pending()
-                                                disabled=Signal::derive(move || !is_available)
+                                                disabled=Signal::derive(move || !is_available || is_owner)
                                                 on_click={
                                                     let uid = item.item_uid.clone();
                                                     let owner_uid = item.owner_uid.clone();
-                                                    move || { chat_action.dispatch(CreateChatRoomReq { item_uid: uid.clone(), partner_uid: owner_uid.clone() }); }
+                                                    move || { 
+                                                        if is_owner {
+                                                            chat_error.set(Some("자신의 상품에는 채팅을 시작할 수 없습니다.".to_string()));
+                                                            return;
+                                                        }
+                                                        chat_action.dispatch(CreateChatRoomReq { item_uid: uid.clone(), partner_uid: owner_uid.clone() }); 
+                                                    }
                                                 }
                                             >
                                                 "채팅하기"
@@ -220,6 +237,11 @@ pub fn ProductDetailPage() -> impl IntoView {
                                             </AppButton>
                                         </div>
                                     </div>
+                                    {move || chat_error.get().map(|e| view! {
+                                        <div style="color: var(--danger-color, red); background: #ffebee; padding: 0.75rem; border-radius: 8px; margin-top: 1rem; text-align: center; font-size: 0.9rem;">
+                                            {e}
+                                        </div>
+                                    })}
                                     {move || escrow_error.get().map(|e| view! {
                                         <div style="color: var(--danger-color, red); background: #ffebee; padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem; text-align: center; font-size: 0.9rem;">
                                             {e}

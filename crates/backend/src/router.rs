@@ -62,7 +62,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/products/:item_uid/reports", post(report_handler::submit_report))
         // Wallet
         .route("/wallet", get(wallet_handler::get_wallet))
-        .route("/wallet/withdraw", post(wallet_handler::withdraw))
+
         .route("/wallet/eth/withdraw", post(wallet_handler::eth_withdraw))
         .route("/wallet/history", get(wallet_handler::get_tx_history))
         // Escrow

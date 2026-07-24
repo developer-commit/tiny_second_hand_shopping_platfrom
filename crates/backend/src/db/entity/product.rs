@@ -71,7 +71,7 @@ impl Model {
         };
         let currency_enum = match self.currency.as_str() {
             "ETH" => shared::dto::common_dto::Currency::ETH,
-            _ => shared::dto::common_dto::Currency::BCH,
+            _ => shared::dto::common_dto::Currency::UNSUPPORTED,
         };
         Ok(ItemDetailRes {
             item_uid: obfuscate(self.id)?,

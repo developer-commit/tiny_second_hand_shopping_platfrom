@@ -2,7 +2,7 @@
 // 목적: 관리자 전용 플랫폼 통계 및 운영 DTO.
 // 접근 제어: 이 DTO를 사용하는 모든 핸들러는 backend의
 //           rbac::require_admin 미들웨어로 보호됩니다.
-// 스키마 은닉: total_fee_collected → total_accumulated_bch,
+// 스키마 은닉: total_fee_collected → total_accumulated_fees,
 //             updated_at → last_calculated_at
 
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ use crate::types::OpaqueId;
 /// [Response] GET /admin/stats — 플랫폼 누적 통계
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformStatsRes {
-    pub total_accumulated_bch: f64,  // DB: total_fee_collected
+    pub total_accumulated_fees: f64,  // DB: total_fee_collected
     pub total_users: u64,            // users 테이블 COUNT
     pub active_listings: u64,        // products WHERE status='on_sale' COUNT
     pub active_escrows: u64,         // escrow_trades WHERE status='deposited' COUNT

@@ -42,10 +42,10 @@ impl Related<super::wallet_transaction::Entity> for Entity {
 impl Model {
     /// 잠금 금액을 주입받아 WalletStateRes DTO로 변환.
     /// locked_in_escrow는 escrow_trades에서 별도 집계한 값입니다.
-    pub fn into_dto(self, locked_in_escrow: f64, eth_balance: f64) -> WalletStateRes {
+    pub fn into_dto(self, available_balance: f64, locked_in_escrow: f64, eth_balance: f64) -> WalletStateRes {
         WalletStateRes {
             public_address: self.eth_address,
-            available_balance: eth_balance - locked_in_escrow,
+            available_balance,
             locked_in_escrow,
             eth_balance,
         }

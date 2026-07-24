@@ -734,9 +734,11 @@ paths:
               schema:
                 type: object
                 properties:
-                  total_accumulated_bch: 
+                  total_accumulated_fees: 
                     type: number
-                    format: float
+                    format: double
+                    description: "플랫폼이 누적 징수한 총 수수료 (ETH)"
+                    example: 2.5
                   total_users: { type: integer }
                   active_listings: { type: integer }
                   active_escrows: { type: integer }

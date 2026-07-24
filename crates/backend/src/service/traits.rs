@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use mockall::automock;
 
 use shared::dto::{
-    admin_dto::{ForceSettleReq, PlatformStatsRes, BanUserReq, HideProductReq, AdminReportListRes}, chat_dto::{ChatMessagePayload, ChatRoomRes, CreateChatRoomReq, SendMessageReq}, escrow_dto::{DisputeEscrowReq, InitiateEscrowReq, SafeTradeStatusRes}, noti_dto::NotificationRes, product_dto::{CreateItemReq, ItemDetailRes, ItemSummaryRes, ProductSearchQuery, UpdateItemReq, UpdateItemStateReq}, report_dto::{ReportAckRes, SubmitReportReq}, review_dto::{ReviewRes, SubmitReviewReq}, transaction_dto::{TxHistoryItemRes, WalletStateRes, WithdrawReq, EthWithdrawReq}, user_dto::{AuthTokenRes, Enable2FaReq, LoginReq, LoginResponse, SendCodeReq, SignUpReq, TwoFaSetupRes, UpdateProfileReq, UserProfileRes},
+    admin_dto::{ForceSettleReq, PlatformStatsRes, BanUserReq, HideProductReq, AdminReportListRes}, chat_dto::{ChatMessagePayload, ChatRoomRes, CreateChatRoomReq, SendMessageReq}, escrow_dto::{DisputeEscrowReq, InitiateEscrowReq, SafeTradeStatusRes}, noti_dto::NotificationRes, product_dto::{CreateItemReq, ItemDetailRes, ItemSummaryRes, ProductSearchQuery, UpdateItemReq, UpdateItemStateReq}, report_dto::{ReportAckRes, SubmitReportReq}, review_dto::{ReviewRes, SubmitReviewReq}, transaction_dto::{TxHistoryItemRes, WalletStateRes, EthWithdrawReq}, user_dto::{AuthTokenRes, Enable2FaReq, LoginReq, LoginResponse, SendCodeReq, SignUpReq, TwoFaSetupRes, UpdateProfileReq, UserProfileRes},
 };
 
 //errors
@@ -131,7 +131,7 @@ pub trait UserServiceTrait: Send + Sync {
 #[async_trait]
 pub trait WalletServiceTrait: Send + Sync {
     async fn get_wallet_state(&self, user_id: i64) -> Result<WalletStateRes, WalletServiceError>;
-    async fn withdraw(&self, user_id: i64, req: WithdrawReq) -> Result<TxHistoryItemRes, WalletServiceError>;
+
     async fn get_tx_history(&self, user_id: i64) -> Result<Vec<TxHistoryItemRes>, WalletServiceError>;
     async fn eth_withdraw(&self, user_id: i64, req: EthWithdrawReq) -> Result<TxHistoryItemRes, WalletServiceError>;
 }

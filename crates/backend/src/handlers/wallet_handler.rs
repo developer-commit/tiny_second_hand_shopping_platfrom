@@ -9,7 +9,7 @@ use axum::{
     http::StatusCode,
     response::Json,
 };
-use shared::dto::transaction_dto::{TxHistoryItemRes, WalletStateRes, WithdrawReq, EthWithdrawReq};
+use shared::dto::transaction_dto::{TxHistoryItemRes, WalletStateRes, EthWithdrawReq};
 use crate::state::AppState;
 use crate::utils::auth::Claims;
 
@@ -29,23 +29,7 @@ pub async fn get_wallet(
         })
 }
 
-/// POST /v1/wallet/withdraw (인증 필요 + 2FA 내부 검증)
-pub async fn withdraw(
-    State(state): State<AppState>,
-    axum::Extension(claims): axum::Extension<Claims>,
-    Json(req): Json<WithdrawReq>,
-) -> Result<Json<TxHistoryItemRes>, AppError> {
-    use validator::Validate;
-    req.validate().map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
-    
-    let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
-    state.wallet_service.withdraw(user_id, req).await
-        .map(Json)
-        .map_err(|e| {
-            tracing::error!("withdraw error: {:?}", e);
-            AppError::Internal
-        })
-}
+
 
 /// GET /v1/wallet/history (인증 필요)
 pub async fn get_tx_history(

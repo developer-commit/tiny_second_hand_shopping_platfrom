@@ -1745,7 +1745,7 @@ Output your **Thought** and analysis on how to redefine relationships between `w
 ```
 ```
 
-# 16. 백엔드의 변경에 맞게 프롬프트 변경
+# 16. 백엔드의 변경에 맞게 프론트엔드 변경
 ```
 <role>
 You are a Principal Web3 Frontend Architect and DApp Integration Specialist.
@@ -1806,4 +1806,113 @@ Adhere strictly to the following ReAct & Reflexion self-verification cycle at ea
 Begin immediately with **Phase 1 (Escrow API Client & Type Definitions Update)**.
 Output your initial **Thought** and **Action** detailing the files to modify in `crates/frontend` and the updated API type definitions.
 </instruction>
+```
+# 17, BCH 관련 잔재 완전 삭제
+```
+Remove BCH Support from Backend
+This implementation plan outlines the complete removal of all legacy Bitcoin Cash (BCH) support from the backend application, preserving only the recently verified ETH wallet and escrow functionality.
+
+Goal
+Remove all BCH-related business logic, abstractions, dependencies, and infrastructure, reducing the codebase to an ETH-only model while maintaining database compatibility.
+
+Phase 0: Findings (BCH Dependency Inventory)
+A repository-wide analysis revealed the following BCH footprints:
+
+1. Active BCH Business Logic
+
+WalletDomain: Contains conditional branches (if currency == "ETH") and dedicated BCH balance calculation loops.
+WalletService: Legacy withdrawal logic for req.amount_bch.
+EscrowDispatcherService: Routes requests between bch_service and eth_service.
+EscrowService: The legacy BCH-specific escrow implementation.
+Tests in wallet_domain_test.rs and escrow_service_test.rs.
+2. BCH-Specific Infrastructure & Ports
+
+bch_network_adapter.rs and bch_network_port.rs: Electrum HTTP gateway clients.
+Environment variables: BCH_API_URL (in .env and bch_network_adapter.rs).
+EscrowDispatcherService itself (only needed to support multiple currencies).
+3. BCH-Specific API Contracts & DTOs
+
+Currency enum in common_dto.rs contains BCH.
+TransactionDto contains amount_bch and public_address (CashAddr).
+AdminDto contains total_accumulated_bch.
+BchAmount struct in types.rs.
+4. BCH-Specific Database Schema / History
+
+products.currency and escrow_trades.currency store currency strings (default 'ETH').
+platform_stats.total_fee_collected was mapped to total_accumulated_bch in DTOs.
+Phase 1: Target ETH-Only Architecture
+The target architecture simplifies the domain by eliminating multi-currency abstractions where they no longer serve a purpose:
+
+Wallet Domain: calculate_balance_info will operate exclusively on ETH logic (on-chain balance minus pending_deposit lock). Off-chain BCH tracking logic will be deleted entirely.
+Escrow: EscrowDispatcherService and the legacy EscrowService will be deleted. EthEscrowService will take over as the sole implementation of EscrowServiceTrait.
+Database: We will NOT drop the currency columns in products or escrow_trades yet to avoid breaking historical records or requiring destructive migrations. However, backend entity mappers will default these or ignore them.
+WARNING
+
+The Currency enum in common_dto.rs will be reduced to only ETH, or completely removed if we change the API to no longer require the user to specify currency (since ETH is the only one). I propose keeping Currency::ETH and dropping BCH to maintain API signature stability for clients for now, unless you prefer complete removal of the currency fields.
+
+IMPORTANT
+
+AdminDto::total_accumulated_bch maps directly to the database column platform_stats.total_fee_collected. Should we rename this DTO field to total_accumulated_fees (breaking API change for frontend), or keep the _bch suffix to avoid frontend breakage? I propose renaming it to total_accumulated_eth or total_accumulated_fees and making the same change in the frontend.
+
+Proposed Changes
+[Core Wallet & Escrow Services]
+[MODIFY] 
+wallet_domain.rs
+Delete offchain_bch_balance, wallet_locked_amount_bch, available_bch_balance.
+Delete the BCH-specific loop over wallet_transactions in get_balance_info.
+Simplify calculate_balance_info to only calculate ETH locks (pending_deposit = wallet lock; all others = display lock).
+[MODIFY] 
+wallet_service.rs
+Remove req.amount_bch references.
+[DELETE] 
+escrow_dispatcher.rs
+Delete the dispatcher since there's only one implementation.
+[DELETE] 
+escrow_service.rs
+Delete the legacy BCH implementation.
+[MODIFY] 
+main.rs
+Remove bch_escrow_service and EscrowDispatcherService DI wiring. Wire EthEscrowService directly as the EscrowServiceTrait.
+[Infrastructure & Ports]
+[DELETE] 
+bch_network_port.rs
+Delete entirely.
+[DELETE] 
+bch_network_adapter.rs
+Delete entirely.
+[MODIFY] [mod.rs files in ports and infra]
+Remove pub mod bch_network_port and pub mod bch_network_adapter.
+[MODIFY] [.env]
+Remove BCH_API_URL.
+[DTOs and Database Entities]
+[MODIFY] 
+common_dto.rs
+Remove BCH from the Currency enum.
+Add an UNSUPPORTED variant with #[serde(other)] to act as a read-only legacy representation for historical records, strictly adhering to the rule to NOT default unknown currencies to ETH.
+[MODIFY] 
+transaction_dto.rs
+Remove amount_bch.
+PRESERVE public_address. Code review confirms it holds the user's ETH address and is actively consumed by the frontend for display.
+[MODIFY] 
+types.rs
+Remove BchAmount.
+[MODIFY] [db/entity/escrow_trade.rs & product.rs]
+Update try_from mappings so that _ => Currency::UNSUPPORTED. Any legacy BCH record will be explicitly marked as unsupported rather than silently migrating to ETH.
+[MODIFY] [admin_dto.rs / platform_stats.rs / admin.rs (frontend)]
+Rename total_accumulated_bch to total_accumulated_fees across both backend and frontend. The unit in the frontend is already explicitly "ETH", so this preserves semantic correctness.
+[Tests]
+[MODIFY] 
+wallet_domain_test.rs
+Remove BCH-specific scenarios (test_bch_escrow_lifecycle, test_mixed_currencies).
+Keep and expand ETH-specific regression tests.
+[DELETE] 
+escrow_service_test.rs
+Delete this legacy BCH test suite.
+Verification Plan
+Automated Tests
+Run cargo check -p backend -p frontend to ensure no dead BCH references block compilation.
+Run cargo test -p backend to ensure the ETH invariants remain intact without BCH complexity.
+Run cargo clippy -p backend -- -D warnings to catch unused imports resulting from BCH removal.
+Manual Verification
+Perform a final repository-wide grep -i -E 'bch|bitcoin cash' to ensure absolute eradication of BCH business logic.
 ```

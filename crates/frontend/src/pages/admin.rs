@@ -190,7 +190,7 @@ pub fn AdminPage() -> impl IntoView {
                         <Suspense fallback=move || view! { <p>"통계 불러오는 중..."</p> }>
                             {move || stats_res.get().map(|res| match &*res {
                                 Ok(stats) => view! {
-                                    <StatCard label="총 누적 수수료" value=format!("{} ETH", stats.total_accumulated_bch) icon="📈" />
+                                    <StatCard label="총 누적 수수료" value=format!("{} ETH", stats.total_accumulated_fees) icon="📈" />
                                     <StatCard label="총 사용자 수" value=format!("{} 명", stats.total_users) icon="👥" />
                                     <StatCard label="활성 상품" value=format!("{} 개", stats.active_listings) icon="📦" />
                                     <StatCard label="진행중인 에스크로" value=format!("{} 건", stats.active_escrows) icon="🔒" />
