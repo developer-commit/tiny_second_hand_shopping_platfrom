@@ -1084,7 +1084,7 @@ docker compose -f docker/docker-compose.yml ps
 docker compose -f docker/docker-compose.yml logs -f app
 ```
 
-http://127.0.0.1:8080/index.html 접속
+http://127.0.0.1:8080/ 접속
 
 
 ```bash
@@ -2094,4 +2094,4 @@ Will test the flow: Product Detail -> Click Seller -> Profile -> Click Product -
 ```
 
 # 20. 어드민 기능 점검
-어드민 권한 주기만 추가함
+어드민 권한 주기만 추가함, 이외에는 더미코드

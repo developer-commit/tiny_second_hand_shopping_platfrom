@@ -50,6 +50,7 @@ services:
       /app/migration refresh -u $$DATABASE_URL &&
       /app/backend"
     environment:
+      # 기존 변수들
       - DATABASE_URL=postgres://bch_user:bch_password@db:5432/bch_marketplace
       - REDIS_URL=redis://redis:6379
       - RUST_LOG=info
@@ -58,6 +59,9 @@ services:
       - APP_ENV=production
       - KMS_KEY=0123456789abcdef0123456789abcdef
       - JWT_SECRET=0123456789abcdef0123456789abcdef
+      - PORT=8080
+      - ETH_RPC_URL=http://anvil:8545  # Anvil 컨테이너와 통신하기 위한 주소
+      - BCH_API_URL=https://bch-api.local # test-runner에 있었던 외부 API 주소
     depends_on:
       db:
         condition: service_healthy
