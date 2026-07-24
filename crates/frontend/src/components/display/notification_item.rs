@@ -11,10 +11,10 @@ pub fn NotificationItem(noti: NotificationRes) -> impl IntoView {
     let navigate = use_navigate();
 
     let (icon, _kind_label) = match noti.kind {
-        NotificationKind::Chat         => ("💬", "채팅"),
+        NotificationKind::Chat => ("💬", "채팅"),
         NotificationKind::EscrowUpdate => ("🔒", "에스크로"),
-        NotificationKind::System       => ("🔔", "시스템"),
-        NotificationKind::Warning      => ("⚠️", "경고"),
+        NotificationKind::System => ("🔔", "시스템"),
+        NotificationKind::Warning => ("⚠️", "경고"),
         NotificationKind::ReportResult => ("📋", "신고결과"),
     };
 
@@ -22,13 +22,13 @@ pub fn NotificationItem(noti: NotificationRes) -> impl IntoView {
     let kind = noti.kind.clone();
     let on_click = move |_| {
         let path = match &kind {
-            NotificationKind::Chat         => "/chat".to_string(),
+            NotificationKind::Chat => "/chat".to_string(),
             NotificationKind::EscrowUpdate => link_uid
                 .as_ref()
                 .map(|uid| format!("/escrow/{}", uid))
                 .unwrap_or_else(|| "/".to_string()),
-            NotificationKind::System       => return,
-            NotificationKind::Warning      => "/mypage".to_string(),
+            NotificationKind::System => return,
+            NotificationKind::Warning => "/mypage".to_string(),
             NotificationKind::ReportResult => link_uid
                 .as_ref()
                 .map(|uid| format!("/products/{}", uid))

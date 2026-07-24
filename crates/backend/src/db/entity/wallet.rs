@@ -15,15 +15,19 @@ use shared::dto::transaction_dto::WalletStateRes;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    pub user_id: i64,                         // FK → users.id
-    pub eth_address: String,                   // EVM 공개 주소
+    pub user_id: i64,        // FK → users.id
+    pub eth_address: String, // EVM 공개 주소
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(belongs_to = "super::user::Entity", from = "Column::UserId", to = "super::user::Column::Id")]
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::UserId",
+        to = "super::user::Column::Id"
+    )]
     User,
     #[sea_orm(has_many = "super::wallet_transaction::Entity")]
     WalletTransactions,
@@ -32,17 +36,26 @@ pub enum Relation {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Related<super::user::Entity> for Entity {
-    fn to() -> RelationDef { Relation::User.def() }
+    fn to() -> RelationDef {
+        Relation::User.def()
+    }
 }
 
 impl Related<super::wallet_transaction::Entity> for Entity {
-    fn to() -> RelationDef { Relation::WalletTransactions.def() }
+    fn to() -> RelationDef {
+        Relation::WalletTransactions.def()
+    }
 }
 
 impl Model {
     /// 잠금 금액을 주입받아 WalletStateRes DTO로 변환.
     /// locked_in_escrow는 escrow_trades에서 별도 집계한 값입니다.
-    pub fn into_dto(self, available_balance: f64, locked_in_escrow: f64, eth_balance: f64) -> WalletStateRes {
+    pub fn into_dto(
+        self,
+        available_balance: f64,
+        locked_in_escrow: f64,
+        eth_balance: f64,
+    ) -> WalletStateRes {
         WalletStateRes {
             public_address: self.eth_address,
             available_balance,

@@ -2,15 +2,17 @@
 // 목적: 관리자 전용 핸들러.
 // [보안] 이 모듈의 모든 핸들러는 router.rs에서 rbac::require_admin 레이어로 감쌉니다.
 
+use crate::state::AppState;
+use crate::utils::auth::Claims;
 use crate::utils::error::AppError;
 use axum::{
-    extract::{State, Path},
+    extract::{Path, State},
     http::StatusCode,
     response::Json,
 };
-use shared::dto::admin_dto::{ForceSettleReq, PlatformStatsRes, BanUserReq, HideProductReq, AdminReportListRes};
-use crate::state::AppState;
-use crate::utils::auth::Claims;
+use shared::dto::admin_dto::{
+    AdminReportListRes, BanUserReq, ForceSettleReq, HideProductReq, PlatformStatsRes,
+};
 
 /// GET /v1/admin/stats (관리자 전용)
 pub async fn get_platform_stats(
@@ -33,8 +35,12 @@ pub async fn force_settle(
 
     match state.admin_service.force_settle(admin_id, req).await {
         Ok(_) => Ok(StatusCode::OK),
-        Err(crate::service::admin_service::AdminServiceError::TradeNotFound) => Err(AppError::NotFound("Not found".to_string())),
-        Err(crate::service::admin_service::AdminServiceError::AlreadySettled) => Err(AppError::BadRequest("Already settled".to_string())),
+        Err(crate::service::admin_service::AdminServiceError::TradeNotFound) => {
+            Err(AppError::NotFound("Not found".to_string()))
+        }
+        Err(crate::service::admin_service::AdminServiceError::AlreadySettled) => {
+            Err(AppError::BadRequest("Already settled".to_string()))
+        }
         Err(_) => Err(AppError::Internal),
     }
 }
@@ -47,7 +53,8 @@ pub async fn ban_user(
     Json(req): Json<BanUserReq>,
 ) -> Result<StatusCode, AppError> {
     let admin_id = crate::utils::security::deobfuscate(&claims.sub).unwrap_or(0);
-    let user_id = crate::utils::security::deobfuscate(&user_uid).map_err(|_| AppError::NotFound("User not found".to_string()))?;
+    let user_id = crate::utils::security::deobfuscate(&user_uid)
+        .map_err(|_| AppError::NotFound("User not found".to_string()))?;
 
     match state.admin_service.ban_user(admin_id, user_id, req).await {
         Ok(_) => Ok(StatusCode::OK),
@@ -63,9 +70,14 @@ pub async fn hide_product(
     Json(req): Json<HideProductReq>,
 ) -> Result<StatusCode, AppError> {
     let admin_id = crate::utils::security::deobfuscate(&claims.sub).unwrap_or(0);
-    let product_id = crate::utils::security::deobfuscate(&item_uid).map_err(|_| AppError::NotFound("Product not found".to_string()))?;
+    let product_id = crate::utils::security::deobfuscate(&item_uid)
+        .map_err(|_| AppError::NotFound("Product not found".to_string()))?;
 
-    match state.admin_service.hide_product(admin_id, product_id, req).await {
+    match state
+        .admin_service
+        .hide_product(admin_id, product_id, req)
+        .await
+    {
         Ok(_) => Ok(StatusCode::OK),
         Err(_) => Err(AppError::Internal),
     }

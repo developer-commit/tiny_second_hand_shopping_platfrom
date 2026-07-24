@@ -42,11 +42,11 @@ impl std::fmt::Display for UserRole {
 /// 주의: 내부 DB ID(i64)는 절대 포함되지 않습니다.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,       // user_uid (OpaqueId) — DB id 아님
-    pub role: UserRole,    // RBAC용 역할
-    pub status: String,    // 계정 상태 — 미들웨어에서 dormant/suspended 차단
-    pub exp: u64,          // Unix timestamp 만료 시간
-    pub iat: u64,          // Unix timestamp 발급 시간
+    pub sub: String,    // user_uid (OpaqueId) — DB id 아님
+    pub role: UserRole, // RBAC용 역할
+    pub status: String, // 계정 상태 — 미들웨어에서 dormant/suspended 차단
+    pub exp: u64,       // Unix timestamp 만료 시간
+    pub iat: u64,       // Unix timestamp 발급 시간
 }
 
 /// JWT 서명 비밀 키 — AppState에 SecretString으로 보관

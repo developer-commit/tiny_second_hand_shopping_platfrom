@@ -1,17 +1,17 @@
 // crates/frontend/src/pages/product_new.rs
 // URL: /products/new
 
+use crate::components::{
+    feedback::{AppButton, ButtonVariant},
+    input::{CategorySelect, FormInput, FormTextarea, ImageUploader, PriceInput, TagInput},
+    layout::PageContainer,
+};
+use crate::models::auth_model::AuthStore;
+use gloo_net::http::Request;
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
 use shared::dto::product_dto::CreateItemReq;
-use gloo_net::http::Request;
-use crate::components::{
-    layout::PageContainer,
-    input::{FormInput, FormTextarea, PriceInput, CategorySelect, TagInput, ImageUploader},
-    feedback::{AppButton, ButtonVariant},
-};
-use crate::models::auth_model::AuthStore;
 
 #[component]
 pub fn ProductNewPage() -> impl IntoView {
@@ -23,7 +23,7 @@ pub fn ProductNewPage() -> impl IntoView {
     let tags_input = RwSignal::new(Vec::<String>::new());
     let image_files = RwSignal::new(Vec::<String>::new());
     let error_msg = RwSignal::new(Option::<String>::None);
-    
+
     let navigate = use_navigate();
     let auth_store = expect_context::<AuthStore>();
     let token = Signal::derive(move || auth_store.bearer_header().unwrap_or_default());
@@ -32,10 +32,12 @@ pub fn ProductNewPage() -> impl IntoView {
         let req_clone = req.clone();
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
-            
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
+
             let req_with_images = req_clone;
-            
+
             let res = Request::post("/v1/products")
                 .header("Authorization", &format!("Bearer {}", t))
                 .json(&req_with_images)
@@ -46,10 +48,12 @@ pub fn ProductNewPage() -> impl IntoView {
 
             if !res.ok() {
                 let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-                let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "Failed to create product".to_string());
+                let err_msg = err_res
+                    .map(|e| e.message)
+                    .unwrap_or_else(|_| "Failed to create product".to_string());
                 return Err(err_msg);
             }
-            
+
             // Assume the API returns ItemSummaryRes or similar with item_uid
             // For now just return ok and let it redirect to home or somewhere
             Ok(())
@@ -69,7 +73,7 @@ pub fn ProductNewPage() -> impl IntoView {
         };
         submit_action.dispatch(req);
     };
-    
+
     Effect::new(move |_| {
         if let Some(res) = submit_action.value().get() {
             match res {
@@ -88,10 +92,10 @@ pub fn ProductNewPage() -> impl IntoView {
         <PageContainer title="상품 등록">
             <div class="product-new" style="max-width: 600px; margin: 0 auto; padding-top: 2rem;">
                 <h1 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 2rem;">"상품 등록"</h1>
-                
+
                 <form on:submit=on_submit style="display: flex; flex-direction: column; gap: 1.5rem;">
                     <ImageUploader preview_urls=image_files on_uploaded=Callback::new(move |_| {}) />
-                    
+
                     <FormInput
                         label="상품명"
                         placeholder="상품의 제목을 입력하세요"
@@ -99,12 +103,12 @@ pub fn ProductNewPage() -> impl IntoView {
                         signal=heading
                         error=Signal::derive(|| None)
                     />
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"카테고리"</label>
                         <CategorySelect signal=group_category />
                     </div>
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"통화"</label>
                         <select
@@ -114,7 +118,7 @@ pub fn ProductNewPage() -> impl IntoView {
                             <option value="ETH" selected>"ETH"</option>
                         </select>
                     </div>
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">
                             "가격 ("
@@ -123,21 +127,21 @@ pub fn ProductNewPage() -> impl IntoView {
                         </label>
                         <PriceInput signal=asking_price />
                     </div>
-                    
+
                     <FormTextarea
                         label="상품 설명"
                         placeholder="상품의 상세 설명을 입력하세요"
                         signal=detail_body
                         error=Signal::derive(|| None)
                     />
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"태그"</label>
                         <TagInput tags=tags_input />
                     </div>
-                    
+
                     {move || error_msg.get().map(|e| view! { <p class="error" style="color: red;">{e}</p> })}
-                    
+
                     <AppButton
                         variant=ButtonVariant::Primary
                         loading=submit_action.pending()

@@ -4,10 +4,7 @@
 use leptos::prelude::*;
 
 #[component]
-pub fn WalletBalanceCard(
-    available: f64,
-    locked: f64,
-) -> impl IntoView {
+pub fn WalletBalanceCard(available: f64, locked: f64) -> impl IntoView {
     let withdrawable = available - locked;
 
     view! {

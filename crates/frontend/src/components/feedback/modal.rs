@@ -5,30 +5,29 @@
 // 조건부 렌더링에 portal 패턴 대신 is_open 기반 CSS class + 직접 렌더링을 사용합니다.
 
 use leptos::prelude::*;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 #[component]
 pub fn Modal(
     is_open: RwSignal<bool>,
-    #[prop(into)]
-    title: String,
+    #[prop(into)] title: String,
     children: Children,
 ) -> impl IntoView {
     // ESC 키로 닫기 — document keydown 이벤트 등록
     Effect::new(move |_| {
         if is_open.get() {
-            let closure = Closure::<dyn Fn(web_sys::KeyboardEvent)>::new(move |ev: web_sys::KeyboardEvent| {
-                if ev.key() == "Escape" {
-                    is_open.set(false);
-                }
-            });
+            let closure = Closure::<dyn Fn(web_sys::KeyboardEvent)>::new(
+                move |ev: web_sys::KeyboardEvent| {
+                    if ev.key() == "Escape" {
+                        is_open.set(false);
+                    }
+                },
+            );
 
             if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-                let _ = document.add_event_listener_with_callback(
-                    "keydown",
-                    closure.as_ref().unchecked_ref(),
-                );
+                let _ = document
+                    .add_event_listener_with_callback("keydown", closure.as_ref().unchecked_ref());
                 closure.forget();
             }
         }

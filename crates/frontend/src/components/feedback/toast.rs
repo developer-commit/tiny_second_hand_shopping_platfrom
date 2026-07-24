@@ -39,7 +39,11 @@ impl ToastStore {
     /// 토스트 추가 — 3초 후 자동 제거
     pub fn push(&self, kind: ToastKind, message: impl Into<String>) {
         let id = TOAST_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-        let toast = Toast { id, kind, message: message.into() };
+        let toast = Toast {
+            id,
+            kind,
+            message: message.into(),
+        };
         self.toasts.update(|v| v.push(toast));
 
         // 3초 후 자동 제거 (JS setTimeout)
@@ -57,10 +61,18 @@ impl ToastStore {
         closure.forget();
     }
 
-    pub fn success(&self, msg: impl Into<String>) { self.push(ToastKind::Success, msg); }
-    pub fn error(&self, msg: impl Into<String>)   { self.push(ToastKind::Error, msg); }
-    pub fn warning(&self, msg: impl Into<String>) { self.push(ToastKind::Warning, msg); }
-    pub fn info(&self, msg: impl Into<String>)    { self.push(ToastKind::Info, msg); }
+    pub fn success(&self, msg: impl Into<String>) {
+        self.push(ToastKind::Success, msg);
+    }
+    pub fn error(&self, msg: impl Into<String>) {
+        self.push(ToastKind::Error, msg);
+    }
+    pub fn warning(&self, msg: impl Into<String>) {
+        self.push(ToastKind::Warning, msg);
+    }
+    pub fn info(&self, msg: impl Into<String>) {
+        self.push(ToastKind::Info, msg);
+    }
 
     /// 특정 토스트 수동 제거
     pub fn dismiss(&self, id: u32) {
@@ -71,8 +83,7 @@ impl ToastStore {
 /// 화면 우하단 고정 토스트 컨테이너 — main.rs 루트에 한 번만 배치합니다.
 #[component]
 pub fn ToastContainer() -> impl IntoView {
-    let store = use_context::<ToastStore>()
-        .expect("ToastStore must be provided");
+    let store = use_context::<ToastStore>().expect("ToastStore must be provided");
 
     view! {
         <div class="toast-container" aria-live="polite" aria-atomic="false">

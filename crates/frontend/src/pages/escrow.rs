@@ -5,20 +5,20 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::use_params_map;
 
-use shared::dto::escrow_dto::{DisputeEscrowReq, TradeStep};
-use shared::dto::review_dto::SubmitReviewReq;
-use gloo_net::http::Request;
 use crate::components::{
-    layout::PageContainer,
-    display::{TradeStepBadge, StepProgress},
-    input::{FormTextarea, StarRating},
+    display::{StepProgress, TradeStepBadge},
     feedback::{AppButton, ButtonVariant, Modal},
+    input::{FormTextarea, StarRating},
+    layout::PageContainer,
 };
 use crate::models::{
-    escrow_model::{fetch_escrow_status, dispute_escrow, deposit_escrow},
     auth_model::AuthStore,
+    escrow_model::{deposit_escrow, dispute_escrow, fetch_escrow_status},
     wallet_model::fetch_wallet_state,
 };
+use gloo_net::http::Request;
+use shared::dto::escrow_dto::{DisputeEscrowReq, TradeStep};
+use shared::dto::review_dto::SubmitReviewReq;
 
 async fn confirm_escrow(token: &str, trade_uid: &str) -> Result<(), String> {
     let url = format!("{}/escrow/{}/confirm", "/v1", trade_uid);
@@ -54,11 +54,15 @@ async fn submit_review(token: &str, trade_uid: &str, req: &SubmitReviewReq) -> R
 pub fn EscrowPage() -> impl IntoView {
     let params = use_params_map();
     let trade_uid = move || params.with(|p| p.get("trade_uid").unwrap_or_default());
-    
+
     let auth_store = expect_context::<AuthStore>();
     let token = Signal::derive(move || auth_store.bearer_header().unwrap_or_default());
     let current_user_uid = Signal::derive(move || {
-        auth_store.current_user.get().map(|u| u.user_uid).unwrap_or_default()
+        auth_store
+            .current_user
+            .get()
+            .map(|u| u.user_uid)
+            .unwrap_or_default()
     });
 
     let dispute_reason = RwSignal::new(String::new());
@@ -71,7 +75,9 @@ pub fn EscrowPage() -> impl IntoView {
         let t = token.get();
         let uid = trade_uid();
         async move {
-            if t.is_empty() || uid.is_empty() { return Err("유효하지 않은 요청입니다.".to_string()); }
+            if t.is_empty() || uid.is_empty() {
+                return Err("유효하지 않은 요청입니다.".to_string());
+            }
             fetch_escrow_status(&t, &uid).await
         }
     });
@@ -79,7 +85,9 @@ pub fn EscrowPage() -> impl IntoView {
     let wallet_res = LocalResource::new(move || {
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             fetch_wallet_state(&t).await
         }
     });
@@ -89,7 +97,9 @@ pub fn EscrowPage() -> impl IntoView {
         let t = token.get();
         let uid = trade_uid();
         async move {
-            if t.is_empty() || uid.is_empty() { return Err("유효하지 않은 요청입니다.".to_string()); }
+            if t.is_empty() || uid.is_empty() {
+                return Err("유효하지 않은 요청입니다.".to_string());
+            }
             dispute_escrow(&t, &uid, req_clone).await
         }
     });
@@ -98,7 +108,9 @@ pub fn EscrowPage() -> impl IntoView {
         let t = token.get();
         let uid = trade_uid();
         async move {
-            if t.is_empty() || uid.is_empty() { return Err("유효하지 않은 요청입니다.".to_string()); }
+            if t.is_empty() || uid.is_empty() {
+                return Err("유효하지 않은 요청입니다.".to_string());
+            }
             confirm_escrow(&t, &uid).await
         }
     });
@@ -108,7 +120,9 @@ pub fn EscrowPage() -> impl IntoView {
         let t = token.get();
         let uid = trade_uid();
         async move {
-            if t.is_empty() || uid.is_empty() { return Err("유효하지 않은 요청입니다.".to_string()); }
+            if t.is_empty() || uid.is_empty() {
+                return Err("유효하지 않은 요청입니다.".to_string());
+            }
             submit_review(&t, &uid, &req_clone).await
         }
     });
@@ -120,7 +134,9 @@ pub fn EscrowPage() -> impl IntoView {
         let t = token.get();
         let uid = trade_uid();
         async move {
-            if t.is_empty() || uid.is_empty() { return Err("유효하지 않은 요청입니다.".to_string()); }
+            if t.is_empty() || uid.is_empty() {
+                return Err("유효하지 않은 요청입니다.".to_string());
+            }
             is_depositing.set(true);
             deposit_error.set(None);
             let res = deposit_escrow(&t, &uid).await;
@@ -186,7 +202,7 @@ pub fn EscrowPage() -> impl IntoView {
                         })}
                     </Suspense>
                 </div>
-                
+
                 <Suspense fallback=move || view! { <p>"상태를 불러오는 중..."</p> }>
                     {move || escrow_res.get().map(|res| match &*res {
                         Ok(state) => {
@@ -208,7 +224,7 @@ pub fn EscrowPage() -> impl IntoView {
                             let seller_uid = state.seller_uid.clone();
                             let buyer_uid = state.buyer_uid.clone();
 
-                            
+
                             let progress_steps = vec![
                                 "입금/결제 대기".to_string(),
                                 "결제 완료".to_string(),
@@ -229,7 +245,7 @@ pub fn EscrowPage() -> impl IntoView {
                                         </div>
                                         <StepProgress steps=progress_steps current=current_step />
                                     </div>
-                                    
+
                                     <Show when=move || !is_settled && !is_pending_deposit>
                                         <Show when=move || is_buyer>
                                             {move || confirm_error.get().map(|e| view! { <div style="color: red; margin-bottom: 1rem; font-size: 0.9rem;">{e}</div> })}
@@ -276,9 +292,9 @@ pub fn EscrowPage() -> impl IntoView {
                                                 <p style="margin-bottom: 1rem; color: var(--text-secondary);">
                                                     "에스크로 안전결제를 위해 시스템이 자동으로 스마트 컨트랙트에 예치금을 입금합니다."
                                                 </p>
-                                                
+
                                                 {move || deposit_error.get().map(|e| view! { <div style="color: red; margin-bottom: 1rem; font-size: 0.9rem;">{e}</div> })}
-                                                
+
                                                 <AppButton
                                                     variant=ButtonVariant::Primary
                                                     loading=Signal::derive(move || is_depositing.get() || deposit_action.pending().get())
@@ -301,7 +317,7 @@ pub fn EscrowPage() -> impl IntoView {
                                             </div>
                                         </Show>
                                     </Show>
-                                    
+
                                     <Show when=move || is_settled>
                                         <div style="background: var(--success-color, #d4edda); color: var(--success-text, #155724); padding: 1rem; border-radius: 8px; text-align: center; font-weight: bold; border: 1px solid #c3e6cb;">
                                             "✅ 결제가 성공적으로 승인되었습니다. 거래가 완료되었습니다."
@@ -341,7 +357,7 @@ pub fn EscrowPage() -> impl IntoView {
                     })}
                 </Suspense>
             </div>
-            
+
             <Modal is_open=show_dispute_modal title="분쟁 신청">
                 <div style="display: flex; flex-direction: column; gap: 1rem; padding-top: 1rem;">
                     <p style="color: var(--text-secondary); font-size: 0.875rem;">

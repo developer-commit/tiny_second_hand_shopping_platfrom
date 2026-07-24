@@ -7,7 +7,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
     pub product_id: Option<i64>,
-    pub room_type: String,             // "public" | "private"
+    pub room_type: String, // "public" | "private"
     pub created_at: DateTimeWithTimeZone,
 }
 
@@ -20,5 +20,7 @@ pub enum Relation {
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Related<super::chat_message::Entity> for Entity {
-    fn to() -> RelationDef { Relation::Messages.def() }
+    fn to() -> RelationDef {
+        Relation::Messages.def()
+    }
 }

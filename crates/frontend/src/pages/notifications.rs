@@ -1,17 +1,17 @@
 // crates/frontend/src/pages/notifications.rs
 // URL: /notifications
 
-use leptos::prelude::*;
-use leptos_meta::Title;
 use crate::components::{
+    display::{EmptyState, NotificationItem},
     layout::PageContainer,
-    display::{NotificationItem, EmptyState},
 };
 use crate::models::{
-    notification_store::{NotificationStore, fetch_notifications},
     auth_model::AuthStore,
+    notification_store::{NotificationStore, fetch_notifications},
 };
 use gloo_net::http::Request;
+use leptos::prelude::*;
+use leptos_meta::Title;
 
 async fn mark_notification_read(token: &str, noti_uid: &str) -> Result<(), String> {
     let url = format!("{}/notifications/{}/read", "/v1", noti_uid);
@@ -31,13 +31,15 @@ async fn mark_notification_read(token: &str, noti_uid: &str) -> Result<(), Strin
 pub fn NotificationsPage() -> impl IntoView {
     let auth_store = expect_context::<AuthStore>();
     let noti_store = expect_context::<NotificationStore>();
-    
+
     let token = Signal::derive(move || auth_store.bearer_header().unwrap_or_default());
-    
+
     let notis_res = LocalResource::new(move || {
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             fetch_notifications(&t).await
         }
     });
@@ -54,9 +56,7 @@ pub fn NotificationsPage() -> impl IntoView {
     let mark_read_action = Action::new_local(move |noti_uid: &String| {
         let t = token.get();
         let uid = noti_uid.clone();
-        async move {
-            mark_notification_read(&t, &uid).await
-        }
+        async move { mark_notification_read(&t, &uid).await }
     });
 
     Effect::new(move |_| {
@@ -70,7 +70,7 @@ pub fn NotificationsPage() -> impl IntoView {
         <PageContainer title="알림 내역">
             <div class="notifications-page" style="max-width: 600px; margin: 0 auto; padding-top: 2rem; display: flex; flex-direction: column; gap: 2rem;">
                 <h1 style="font-size: 1.5rem; font-weight: bold;">"알림 내역"</h1>
-                
+
                 <Suspense fallback=move || view! { <p>"알림을 불러오는 중..."</p> }>
                     {move || notis_res.get().map(|res| match &*res {
                         Ok(_) => {

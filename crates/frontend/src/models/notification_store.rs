@@ -1,9 +1,9 @@
 // crates/frontend/src/models/notification_store.rs
 // 목적: 알림 전역 저장소 — WebSocket/SSE에서 수신한 알림을 반응형으로 관리.
 
+use gloo_net::http::Request;
 use leptos::prelude::*;
 use shared::dto::noti_dto::NotificationRes;
-use gloo_net::http::Request;
 
 const API_BASE_URL: &str = "/v1";
 
@@ -62,7 +62,9 @@ pub async fn fetch_notifications(token: &str) -> Result<Vec<NotificationRes>, St
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 
@@ -80,7 +82,9 @@ pub async fn mark_notification_read(token: &str, noti_uid: &str) -> Result<(), S
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 

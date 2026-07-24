@@ -11,8 +11,9 @@ fn percent_encode(input: &str) -> String {
     let mut out = String::with_capacity(input.len() * 3);
     for byte in input.bytes() {
         match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'
-            | b'-' | b'_' | b'.' | b'~' => out.push(byte as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
             b => out.push_str(&format!("%{:02X}", b)),
         }
     }
@@ -21,8 +22,7 @@ fn percent_encode(input: &str) -> String {
 
 #[component]
 pub fn QrCodeDisplay(
-    #[prop(into)]
-    data: String,
+    #[prop(into)] data: String,
     /// QR 이미지 크기 (px)
     #[prop(default = 200_u32)]
     size: u32,

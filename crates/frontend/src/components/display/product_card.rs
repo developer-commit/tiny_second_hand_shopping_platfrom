@@ -2,9 +2,9 @@
 // 목적: 홈 상품 그리드 카드 — 썸네일, 제목, 가격, 조회수, 상태 배지
 // <a> 네이티브 태그를 사용하여 class를 직접 설정합니다.
 
+use super::StatusBadge;
 use leptos::prelude::*;
 use shared::dto::product_dto::ItemSummaryRes;
-use super::StatusBadge;
 
 #[component]
 pub fn ProductCard(item: ItemSummaryRes) -> impl IntoView {

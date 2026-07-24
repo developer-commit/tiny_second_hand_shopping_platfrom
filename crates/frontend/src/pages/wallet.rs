@@ -1,18 +1,18 @@
 // crates/frontend/src/pages/wallet.rs
 // URL: /wallet, /wallet/withdraw
 
-use leptos::prelude::*;
-use leptos_meta::Title;
 use crate::components::{
-    layout::PageContainer,
-    display::{WalletBalanceCard, TxHistoryRow, EmptyState},
-    input::{FormInput, PriceInput, OtpInput},
+    display::{EmptyState, TxHistoryRow, WalletBalanceCard},
     feedback::{AppButton, ButtonVariant, Modal},
+    input::{FormInput, OtpInput, PriceInput},
+    layout::PageContainer,
 };
 use crate::models::{
-    wallet_model::{fetch_wallet_state, fetch_tx_history},
     auth_model::AuthStore,
+    wallet_model::{fetch_tx_history, fetch_wallet_state},
 };
+use leptos::prelude::*;
+use leptos_meta::Title;
 
 #[component]
 pub fn WalletPage() -> impl IntoView {
@@ -32,7 +32,9 @@ pub fn WalletPage() -> impl IntoView {
     let wallet_res = LocalResource::new(move || {
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             fetch_wallet_state(&t).await
         }
     });
@@ -40,18 +42,19 @@ pub fn WalletPage() -> impl IntoView {
     let tx_res = LocalResource::new(move || {
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             fetch_tx_history(&t).await
         }
     });
 
-    let eth_withdraw_action = Action::new_local(move |req: &shared::dto::transaction_dto::EthWithdrawReq| {
-        let req_clone = req.clone();
-        let t = token.get();
-        async move {
-            crate::models::wallet_model::eth_withdraw(&t, req_clone).await
-        }
-    });
+    let eth_withdraw_action =
+        Action::new_local(move |req: &shared::dto::transaction_dto::EthWithdrawReq| {
+            let req_clone = req.clone();
+            let t = token.get();
+            async move { crate::models::wallet_model::eth_withdraw(&t, req_clone).await }
+        });
 
     Effect::new(move |_| {
         if let Some(res) = eth_withdraw_action.value().get() {
@@ -86,7 +89,7 @@ pub fn WalletPage() -> impl IntoView {
         <PageContainer title="내 지갑">
             <div class="wallet-page" style="max-width: 800px; margin: 0 auto; padding: 2rem; background-color: #f8f9fa; border: 2px solid #e9ecef; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                 <h1 style="font-size: 1.75rem; font-weight: 700; color: #212529; margin-bottom: 1.5rem;">"내 지갑"</h1>
-                
+
                 <Suspense fallback=move || view! { <p style="padding: 2rem; text-align: center; color: #6c757d;">"지갑 정보를 불러오는 중..."</p> }>
                     {move || wallet_res.get().map(|res| match &*res {
                         Ok(state) => {
@@ -96,7 +99,7 @@ pub fn WalletPage() -> impl IntoView {
                             } else {
                                 state.public_address.clone()
                             };
-                                
+
                             view! {
                                 <div style="display: flex; flex-direction: column; gap: 1.5rem; background: #ffffff; padding: 2rem; border-radius: 12px; border: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
                                     <WalletBalanceCard
@@ -160,7 +163,7 @@ pub fn WalletPage() -> impl IntoView {
                             Ok(history) => {
                                 let history = history.clone();
                                 if history.is_empty() {
-                                    view! { 
+                                    view! {
                                         <div style="padding: 3rem; background: #f8f9fa; border-radius: 8px; border: 1px dashed #dee2e6;">
                                             <EmptyState icon="📝" message="거래 내역이 없습니다." />
                                         </div>
@@ -192,7 +195,7 @@ pub fn WalletPage() -> impl IntoView {
                         signal=withdraw_address
                         error=Signal::derive(|| None)
                     />
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"출금 수량"</label>
                         <PriceInput signal=withdraw_amount />
@@ -207,7 +210,7 @@ pub fn WalletPage() -> impl IntoView {
                     </div>
 
                     {move || withdraw_error.get().map(|e| view! { <p class="error" style="color: red;">{e}</p> })}
-                    
+
                     <AppButton
                         variant=ButtonVariant::Danger
                         loading=Signal::derive(move || eth_withdraw_action.pending().get())

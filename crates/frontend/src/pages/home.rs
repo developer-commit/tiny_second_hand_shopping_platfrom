@@ -2,15 +2,15 @@
 // URL: /
 // 목적: 메인 페이지 — 상품 목록, 검색, 정렬 탭
 
+use crate::components::{
+    display::{EmptyState, ProductCard},
+    input::SearchBar,
+    layout::PageContainer,
+};
+use crate::models::product_model::create_products_resource;
 use leptos::prelude::*;
 use leptos_meta::Title;
 use shared::dto::product_dto::ProductSearchQuery;
-use crate::components::{
-    layout::PageContainer,
-    display::{ProductCard, EmptyState},
-    input::SearchBar,
-};
-use crate::models::product_model::create_products_resource;
 
 #[component]
 pub fn HomePage() -> impl IntoView {
@@ -27,6 +27,7 @@ pub fn HomePage() -> impl IntoView {
             keyword: if kw.is_empty() { None } else { Some(kw) },
             group_category: None,
             item_tag: None,
+            owner_uid: None,
             page: Some(1),
             page_size: Some(20),
         }
@@ -42,12 +43,12 @@ pub fn HomePage() -> impl IntoView {
                         on_search=on_search.into()
                     />
                 </section>
-                
+
                 <section class="w-full">
-                    <Suspense fallback=move || view! { 
+                    <Suspense fallback=move || view! {
                         <div class="flex items-center justify-center py-20">
                             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
-                        </div> 
+                        </div>
                     }>
                         {move || {
                             products_res.get().map(|res| {

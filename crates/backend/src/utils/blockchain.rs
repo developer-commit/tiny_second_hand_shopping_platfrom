@@ -73,29 +73,35 @@ impl BlockchainManager {
             let new_balance = current_balance.saturating_add(amount);
             let hex_balance = format!("{:#x}", new_balance);
             let address_hex = format!("{:?}", target);
-            
-            let _: () = self.provider.request("anvil_setBalance", (address_hex, hex_balance)).await?;
+
+            let _: () = self
+                .provider
+                .request("anvil_setBalance", (address_hex, hex_balance))
+                .await?;
             Ok(TxHash::zero()) // No real tx hash for cheatcode
         } else {
             // Real transaction from master
             let client = SignerMiddleware::new(self.provider.clone(), self.master_wallet.clone());
-            let tx = TransactionRequest::new()
-                .to(target)
-                .value(amount);
-            
+            let tx = TransactionRequest::new().to(target).value(amount);
+
             let pending_tx = client.send_transaction(tx, None).await?;
             let receipt = pending_tx.await?.ok_or_else(|| eyre::eyre!("Tx dropped"))?;
             Ok(receipt.transaction_hash)
         }
     }
 
-    pub async fn send_transaction(&self, from_key: &str, target: Address, amount: U256) -> Result<TxHash> {
-        let wallet = from_key.parse::<LocalWallet>()?.with_chain_id(self.chain_id);
+    pub async fn send_transaction(
+        &self,
+        from_key: &str,
+        target: Address,
+        amount: U256,
+    ) -> Result<TxHash> {
+        let wallet = from_key
+            .parse::<LocalWallet>()?
+            .with_chain_id(self.chain_id);
         let client = SignerMiddleware::new(self.provider.clone(), wallet);
-        let tx = TransactionRequest::new()
-            .to(target)
-            .value(amount);
-        
+        let tx = TransactionRequest::new().to(target).value(amount);
+
         let pending_tx = client.send_transaction(tx, None).await?;
         let receipt = pending_tx.await?.ok_or_else(|| eyre::eyre!("Tx dropped"))?;
         Ok(receipt.transaction_hash)

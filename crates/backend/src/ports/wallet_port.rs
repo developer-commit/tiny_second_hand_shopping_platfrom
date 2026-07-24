@@ -5,9 +5,9 @@
 // 어댑터만 교체하면 됩니다.
 
 use async_trait::async_trait;
-use thiserror::Error;
 #[cfg(test)]
 use mockall::automock;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum WalletPortError {
@@ -26,8 +26,8 @@ pub enum WalletPortError {
 /// 새로 생성된 HD 지갑 정보
 #[derive(Debug)]
 pub struct NewWalletInfo {
-    pub eth_address: String,   // EVM 형식 공개 주소
-    pub encrypted_privkey: Vec<u8>, // AES-GCM 암호화된 개인키
+    pub eth_address: String,         // EVM 형식 공개 주소
+    pub encrypted_privkey: Vec<u8>,  // AES-GCM 암호화된 개인키
     pub encrypted_mnemonic: Vec<u8>, // AES-GCM 암호화된 니모닉
 }
 
@@ -44,7 +44,10 @@ pub trait EvmWalletPort: Send + Sync {
     async fn validate_address(&self, address: &str) -> Result<bool, WalletPortError>;
 
     /// 네트워크 수수료 추정 (출금 전 사용자에게 안내)
-    async fn estimate_fee(&self, amount_wei: ethers::types::U256) -> Result<ethers::types::U256, WalletPortError>;
+    async fn estimate_fee(
+        &self,
+        amount_wei: ethers::types::U256,
+    ) -> Result<ethers::types::U256, WalletPortError>;
 
     /// EVM 트랜잭션 생성 및 브로드캐스트
     /// encrypted_privkey: DB에서 복호화된 원본 개인키 바이트

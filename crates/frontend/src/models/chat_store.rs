@@ -1,9 +1,9 @@
 // crates/frontend/src/models/chat_store.rs
 // 목적: 채팅방 및 메시지 전역 상태 관리
 
-use leptos::prelude::*;
-use shared::dto::chat_dto::{ChatRoomRes, ChatMessagePayload, CreateChatRoomReq};
 use gloo_net::http::Request;
+use leptos::prelude::*;
+use shared::dto::chat_dto::{ChatMessagePayload, ChatRoomRes, CreateChatRoomReq};
 
 const API_BASE_URL: &str = "/v1";
 
@@ -46,7 +46,11 @@ impl ChatStore {
     pub fn upsert_message(&self, payload: ChatMessagePayload) {
         if Some(payload.room_uid.clone()) == self.active_room.get() {
             self.messages.update(|msgs| {
-                if let Some(pos) = msgs.iter().position(|m| m.msg_uid.starts_with("pending-") && m.text == payload.text && m.sender_uid == payload.sender_uid) {
+                if let Some(pos) = msgs.iter().position(|m| {
+                    m.msg_uid.starts_with("pending-")
+                        && m.text == payload.text
+                        && m.sender_uid == payload.sender_uid
+                }) {
                     msgs[pos] = payload;
                 } else {
                     if !msgs.iter().any(|m| m.msg_uid == payload.msg_uid) {
@@ -69,7 +73,9 @@ pub async fn fetch_chat_rooms(token: &str) -> Result<Vec<ChatRoomRes>, String> {
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 
@@ -77,7 +83,10 @@ pub async fn fetch_chat_rooms(token: &str) -> Result<Vec<ChatRoomRes>, String> {
 }
 
 /// GET /chat/rooms/{room_uid}/history - 메시지 내역 조회
-pub async fn fetch_chat_messages(token: &str, room_uid: &str) -> Result<Vec<ChatMessagePayload>, String> {
+pub async fn fetch_chat_messages(
+    token: &str,
+    room_uid: &str,
+) -> Result<Vec<ChatMessagePayload>, String> {
     let url = format!("{}/chat/rooms/{}/history", API_BASE_URL, room_uid);
     let res = Request::get(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -87,7 +96,9 @@ pub async fn fetch_chat_messages(token: &str, room_uid: &str) -> Result<Vec<Chat
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 
@@ -107,7 +118,9 @@ pub async fn create_chat_room(token: &str, req: CreateChatRoomReq) -> Result<Cha
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 

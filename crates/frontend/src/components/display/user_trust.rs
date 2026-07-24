@@ -11,9 +11,9 @@ pub fn UserTrustIndicator(reliability_index: f64) -> impl IntoView {
 
     let bar_class = match pct {
         90..=100 => "trust-bar trust-bar-excellent",
-        70..=89  => "trust-bar trust-bar-good",
-        50..=69  => "trust-bar trust-bar-fair",
-        _        => "trust-bar trust-bar-poor",
+        70..=89 => "trust-bar trust-bar-good",
+        50..=69 => "trust-bar trust-bar-fair",
+        _ => "trust-bar trust-bar-poor",
     };
 
     view! {

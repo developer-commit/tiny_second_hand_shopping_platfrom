@@ -10,26 +10,26 @@
 // - is_verified, is_2fa_enabled, role, status 등 보안 상태 필드는
 //   Model에만 존재하고 외부 DTO에는 은닉/변환됩니다.
 
+use crate::utils::security::{SecurityError, obfuscate};
 use sea_orm::entity::prelude::*;
 use shared::dto::user_dto::UserProfileRes;
-use crate::utils::security::{obfuscate, SecurityError};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "users")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    pub id: i64,                          // 내부 PK — 외부 노출 금지
-    pub username: String,                 // 아이디 (유일)
-    pub password_hash: String,            // Argon2 해시 — DTO 제외
+    pub id: i64, // 내부 PK — 외부 노출 금지
+    pub username: String,      // 아이디 (유일)
+    pub password_hash: String, // Argon2 해시 — DTO 제외
     pub email: Option<String>,
     pub phone: Option<String>,
     pub is_verified: bool,
     pub bio: Option<String>,
-    pub trust_score: Decimal,             // 신뢰도 지수
+    pub trust_score: Decimal, // 신뢰도 지수
     pub is_2fa_enabled: bool,
     pub two_factor_secret: Option<String>, // AES-GCM 암호문(Base64) — DTO 제외
-    pub role: String,                     // "user" | "admin"
-    pub status: String,                   // "active" | "dormant" | "suspended"
+    pub role: String,                      // "user" | "admin"
+    pub status: String,                    // "active" | "dormant" | "suspended"
     pub reported_count: i32,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
@@ -56,14 +56,12 @@ impl TryFrom<Model> for UserProfileRes {
     /// password_hash, two_factor_secret은 변환 결과에 절대 포함되지 않습니다.
     fn try_from(m: Model) -> Result<Self, Self::Error> {
         Ok(UserProfileRes {
-            user_uid: obfuscate(m.id)?,          // i64 PK → OpaqueId
-            display_name: m.username,             // username → display_name
+            user_uid: obfuscate(m.id)?, // i64 PK → OpaqueId
+            display_name: m.username,   // username → display_name
             contact_email: m.email,
             bio: m.bio,
-            reliability_index: m.trust_score
-                .try_into()
-                .unwrap_or(0.0),                  // trust_score → reliability_index
-            require_otp: m.is_2fa_enabled,        // is_2fa_enabled → require_otp
+            reliability_index: m.trust_score.try_into().unwrap_or(0.0), // trust_score → reliability_index
+            require_otp: m.is_2fa_enabled, // is_2fa_enabled → require_otp
             account_status: m.status,
             joined_at: m.created_at.to_rfc3339(),
         })

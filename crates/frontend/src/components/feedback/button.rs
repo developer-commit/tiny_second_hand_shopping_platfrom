@@ -14,18 +14,17 @@ pub enum ButtonVariant {
 impl ButtonVariant {
     fn class(&self) -> &'static str {
         match self {
-            ButtonVariant::Primary   => "btn btn-primary",
+            ButtonVariant::Primary => "btn btn-primary",
             ButtonVariant::Secondary => "btn btn-secondary",
-            ButtonVariant::Danger    => "btn btn-danger",
-            ButtonVariant::Ghost     => "btn btn-ghost",
+            ButtonVariant::Danger => "btn btn-danger",
+            ButtonVariant::Ghost => "btn btn-ghost",
         }
     }
 }
 
 #[component]
 pub fn AppButton(
-    #[prop(default = ButtonVariant::Primary)]
-    variant: ButtonVariant,
+    #[prop(default = ButtonVariant::Primary)] variant: ButtonVariant,
     /// 로딩 중 여부 (true이면 스피너 표시, 클릭 불가)
     #[prop(optional, into)]
     loading: Option<Signal<bool>>,
@@ -41,7 +40,7 @@ pub fn AppButton(
     /// 자식 콘텐츠
     children: Children,
 ) -> impl IntoView {
-    let is_loading  = move || loading.map(|s| s.get()).unwrap_or(false);
+    let is_loading = move || loading.map(|s| s.get()).unwrap_or(false);
     let is_disabled = move || disabled.map(|s| s.get()).unwrap_or(false) || is_loading();
 
     let base_class = variant.class();

@@ -7,21 +7,21 @@ use shared::dto::transaction_dto::{MovementType, TxHistoryItemRes, TxStatus};
 #[component]
 pub fn TxHistoryRow(tx: TxHistoryItemRes) -> impl IntoView {
     let (icon, label, amount_class) = match tx.movement_type {
-        MovementType::Deposit       => ("⬇️", "입금",        "tx-amount-positive"),
-        MovementType::Withdrawal    => ("⬆️", "출금",        "tx-amount-negative"),
-        MovementType::EscrowLock    => ("🔒", "에스크로 잠금", "tx-amount-neutral"),
+        MovementType::Deposit => ("⬇️", "입금", "tx-amount-positive"),
+        MovementType::Withdrawal => ("⬆️", "출금", "tx-amount-negative"),
+        MovementType::EscrowLock => ("🔒", "에스크로 잠금", "tx-amount-neutral"),
         MovementType::EscrowRelease => ("🔓", "에스크로 해제", "tx-amount-positive"),
     };
 
     let status_label = match tx.process_status {
-        TxStatus::Pending   => "처리중",
+        TxStatus::Pending => "처리중",
         TxStatus::Confirmed => "완료",
-        TxStatus::Failed    => "실패",
+        TxStatus::Failed => "실패",
     };
     let status_class = match tx.process_status {
-        TxStatus::Pending   => "tx-status tx-status-pending",
+        TxStatus::Pending => "tx-status tx-status-pending",
         TxStatus::Confirmed => "tx-status tx-status-confirmed",
-        TxStatus::Failed    => "tx-status tx-status-failed",
+        TxStatus::Failed => "tx-status tx-status-failed",
     };
 
     let amount_str = format!("{:.4} ETH", tx.amount);

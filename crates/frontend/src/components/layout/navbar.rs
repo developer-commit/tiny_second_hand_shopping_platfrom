@@ -3,26 +3,29 @@
 // AuthStore · NotificationStore를 use_context로 구독합니다.
 // 네이티브 <a> 태그를 사용하여 class를 설정합니다.
 
-use leptos::prelude::*;
 use crate::models::auth_model::AuthStore;
 use crate::models::notification_store::NotificationStore;
+use leptos::prelude::*;
 
 #[component]
 pub fn NavBar() -> impl IntoView {
-    let auth_store = use_context::<AuthStore>()
-        .expect("AuthStore must be provided");
-    let noti_store = use_context::<NotificationStore>()
-        .expect("NotificationStore must be provided");
+    let auth_store = use_context::<AuthStore>().expect("AuthStore must be provided");
+    let noti_store =
+        use_context::<NotificationStore>().expect("NotificationStore must be provided");
 
     let is_authenticated = auth_store.is_authenticated;
     let has_unread = noti_store.has_unread;
     let display_name = move || {
-        auth_store.current_user.get()
+        auth_store
+            .current_user
+            .get()
             .map(|u| u.display_name.clone())
             .unwrap_or_default()
     };
     let avatar_char = move || {
-        display_name().chars().next()
+        display_name()
+            .chars()
+            .next()
             .map(|c| c.to_string())
             .unwrap_or_else(|| "U".to_string())
     };

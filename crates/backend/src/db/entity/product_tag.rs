@@ -12,12 +12,18 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(belongs_to = "super::product::Entity", from = "Column::ProductId", to = "super::product::Column::Id")]
+    #[sea_orm(
+        belongs_to = "super::product::Entity",
+        from = "Column::ProductId",
+        to = "super::product::Column::Id"
+    )]
     Product,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Related<super::product::Entity> for Entity {
-    fn to() -> RelationDef { Relation::Product.def() }
+    fn to() -> RelationDef {
+        Relation::Product.def()
+    }
 }

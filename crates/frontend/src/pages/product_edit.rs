@@ -1,19 +1,23 @@
 // crates/frontend/src/pages/product_edit.rs
 // URL: /products/:item_uid/edit
 
-use leptos::prelude::*;
-use leptos_meta::Title;
-use leptos_router::hooks::{use_params_map, use_navigate};
 use crate::components::{
-    layout::PageContainer,
-    input::{FormInput, FormTextarea, PriceInput, CategorySelect, TagInput},
     feedback::{AppButton, ButtonVariant},
+    input::{CategorySelect, FormInput, FormTextarea, PriceInput, TagInput},
+    layout::PageContainer,
 };
 use crate::models::auth_model::AuthStore;
-use shared::dto::product_dto::{UpdateItemStateReq, UpdateItemReq, ItemState};
 use gloo_net::http::Request;
+use leptos::prelude::*;
+use leptos_meta::Title;
+use leptos_router::hooks::{use_navigate, use_params_map};
+use shared::dto::product_dto::{ItemState, UpdateItemReq, UpdateItemStateReq};
 
-async fn update_item_status(token: &str, item_uid: &str, req: &UpdateItemStateReq) -> Result<(), String> {
+async fn update_item_status(
+    token: &str,
+    item_uid: &str,
+    req: &UpdateItemStateReq,
+) -> Result<(), String> {
     let url = format!("{}/products/{}/status", "/v1", item_uid);
     let res = Request::patch(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -66,18 +70,14 @@ pub fn ProductEditPage() -> impl IntoView {
         let t = token.get();
         let uid = item_uid();
         let req_clone = req.clone();
-        async move {
-            update_item_status(&t, &uid, &req_clone).await
-        }
+        async move { update_item_status(&t, &uid, &req_clone).await }
     });
 
     let update_action = Action::new_local(move |req: &UpdateItemReq| {
         let t = token.get();
         let uid = item_uid();
         let req_clone = req.clone();
-        async move {
-            update_item(&t, &uid, &req_clone).await
-        }
+        async move { update_item(&t, &uid, &req_clone).await }
     });
 
     Effect::new(move |_| {
@@ -91,13 +91,13 @@ pub fn ProductEditPage() -> impl IntoView {
         <PageContainer title="상품 수정">
             <div class="product-edit" style="max-width: 600px; margin: 0 auto; padding-top: 2rem;">
                 <h1 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 2rem;">"상품 수정"</h1>
-                
+
                 <section class="state-change" style="background: var(--surface-color); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
                     <h2 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">"상품 상태 변경"</h2>
                     <div style="display: flex; gap: 1rem; align-items: flex-end;">
                         <div style="flex: 1;">
                             <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"상태"</label>
-                            <select 
+                            <select
                                 on:change=move |e| current_state_input.set(event_target_value(&e))
                                 style="width: 100%; padding: 0.75rem; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-color);"
                             >
@@ -134,7 +134,7 @@ pub fn ProductEditPage() -> impl IntoView {
                         item_tags: Some(tags_input.get()),
                     });
                 } style="display: flex; flex-direction: column; gap: 1.5rem;">
-                    
+
                     <FormInput
                         label="상품명"
                         placeholder="상품의 제목을 입력하세요"
@@ -142,29 +142,29 @@ pub fn ProductEditPage() -> impl IntoView {
                         signal=heading
                         error=Signal::derive(|| None)
                     />
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"카테고리"</label>
                         <CategorySelect signal=group_category />
                     </div>
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"가격"</label>
                         <PriceInput signal=asking_price />
                     </div>
-                    
+
                     <FormTextarea
                         label="상품 설명"
                         placeholder="상품의 상세 설명을 입력하세요"
                         signal=detail_body
                         error=Signal::derive(|| None)
                     />
-                    
+
                     <div>
                         <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">"태그"</label>
                         <TagInput tags=tags_input />
                     </div>
-                    
+
                     <AppButton
                         variant=ButtonVariant::Primary
                         loading=update_action.pending()

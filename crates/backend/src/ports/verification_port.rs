@@ -1,8 +1,8 @@
 // crates/backend/src/ports/verification_port.rs
 use async_trait::async_trait;
-use thiserror::Error;
 #[cfg(test)]
 use mockall::automock;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum VerificationPortError {
@@ -17,7 +17,7 @@ pub enum VerificationPortError {
 pub trait VerificationPort: Send + Sync {
     /// 대상(이메일 등)에게 인증 코드를 전송합니다.
     async fn send_code(&self, target: &str) -> Result<(), VerificationPortError>;
-    
+
     /// 대상의 인증 코드가 올바른지 검증합니다.
     async fn verify_code(&self, target: &str, code: &str) -> Result<bool, VerificationPortError>;
 }

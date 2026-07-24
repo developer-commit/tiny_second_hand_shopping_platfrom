@@ -1916,3 +1916,32 @@ Run cargo clippy -p backend -- -D warnings to catch unused imports resulting fro
 Manual Verification
 Perform a final repository-wide grep -i -E 'bch|bitcoin cash' to ensure absolute eradication of BCH business logic.
 ```
+
+# 18. 타유저 열람 구현
+```
+Public User Profile Implementation Plan
+Goal Description
+Implement a public user profile viewing feature allowing users to view a seller's registration date, public user ID, and active products.
+
+Proposed Changes
+Shared DTOs
+Add PublicUserProfileRes to crates/shared/src/dto/user_dto.rs with user_uid, display_name, bio, reliability_index, and joined_at.
+Add owner_uid to ProductSearchQuery in crates/shared/src/dto/product_dto.rs.
+Backend: User Service & Handler
+Add get_public_profile method to UserServiceTrait and UserService in crates/backend/src/service/user_service.rs. It will map user::Model to PublicUserProfileRes.
+Add get_public_profile handler in crates/backend/src/handlers/user_handler.rs handling GET /users/:user_uid.
+Register the new route in crates/backend/src/router/mod.rs (needs to be verified where routes are defined).
+Backend: Product Service
+Update list_products in ProductService (crates/backend/src/service/product_service.rs) to filter by owner_uid if present in ProductSearchQuery. It will decode the owner_uid to seller_id.
+Frontend: Components & Pages
+Add fetch_public_profile to crates/frontend/src/models/user_model.rs (or similar).
+Create crates/frontend/src/pages/public_profile.rs using existing PageContainer, AppButton, ItemSummaryRes (if they have a ProductCard component, reuse it).
+Register /users/:user_uid route in crates/frontend/src/router.rs.
+Update crates/frontend/src/pages/product_detail.rs to wrap the Seller Info in a clickable link A pointing to /users/{item.owner_uid}.
+Verification Plan
+Automated Tests
+cargo check -p backend -p frontend
+cargo clippy -p backend -- -D warnings
+Manual Verification
+Will test the flow: Product Detail -> Click Seller -> Profile -> Click Product -> Product Detail.
+```

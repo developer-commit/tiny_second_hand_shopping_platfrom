@@ -8,13 +8,10 @@ use wasm_bindgen::JsCast;
 #[component]
 pub fn OtpInput(
     signal: RwSignal<String>,
-    #[prop(default = 6_usize)]
-    length: usize,
+    #[prop(default = 6_usize)] length: usize,
 ) -> impl IntoView {
     // 각 자리를 개별 RwSignal로 관리
-    let digits: Vec<RwSignal<String>> = (0..length)
-        .map(|_| RwSignal::new(String::new()))
-        .collect();
+    let digits: Vec<RwSignal<String>> = (0..length).map(|_| RwSignal::new(String::new())).collect();
 
     // digits 변화 시 signal 동기화
     {

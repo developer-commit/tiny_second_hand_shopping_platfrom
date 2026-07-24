@@ -4,33 +4,30 @@
 // 이 계층에서는 JSON 역직렬화, validator 호출, HTTP 상태코드 매핑만 수행합니다.
 
 use crate::utils::error::AppError;
-use axum::{
-    extract::State,
-    http::StatusCode,
-    response::Json,
-};
+use axum::{extract::State, http::StatusCode, response::Json};
 
 // use tower_http::classify::GrpcCode::Ok;
-use validator::Validate;
+use crate::state::AppState;
 use shared::dto::user_dto::{
     AuthTokenRes, Enable2FaReq, LoginReq, LoginResponse, SendCodeReq, SignUpReq, TwoFaSetupRes,
 };
-use crate::state::AppState;
+use validator::Validate;
 
 use crate::utils::security::deobfuscate;
 
-
-use std::{
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 /// POST /v1/auth/signup
 pub async fn signup(
     State(state): State<AppState>,
     Json(req): Json<SignUpReq>,
 ) -> Result<StatusCode, AppError> {
-    req.validate().map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
-    state.auth_service.sign_up(req).await
+    req.validate()
+        .map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
+    state
+        .auth_service
+        .sign_up(req)
+        .await
         .map(|_| StatusCode::CREATED)
         .map_err(|e| {
             tracing::error!("Signup error: {:?}", e);
@@ -43,7 +40,8 @@ pub async fn login(
     State(state): State<AppState>,
     Json(req): Json<LoginReq>,
 ) -> Result<Json<LoginResponse>, AppError> {
-    req.validate().map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
+    req.validate()
+        .map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
     const ONE_HOUR: Duration = Duration::from_secs(3600);
 
     let account_id = req.account_id.clone();
@@ -62,7 +60,9 @@ pub async fn login(
 
             // 5회 이상 실패 시 차단
             if entry.0 >= 5 {
-                return Err(AppError::BadRequest("Too many failed attempts. Try again later.".to_string()));
+                return Err(AppError::BadRequest(
+                    "Too many failed attempts. Try again later.".to_string(),
+                ));
             }
         }
     }
@@ -76,7 +76,7 @@ pub async fn login(
             if let Ok(mut res) = state.failed_attempts.lock() {
                 res.remove(&account_id);
             }
-            
+
             Ok(res)
         }
         Err(e) => {
@@ -100,7 +100,10 @@ pub async fn setup_2fa(
     axum::Extension(claims): axum::Extension<crate::utils::auth::Claims>,
 ) -> Result<Json<TwoFaSetupRes>, AppError> {
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
-    state.auth_service.setup_2fa(user_id).await
+    state
+        .auth_service
+        .setup_2fa(user_id)
+        .await
         .map(Json)
         .map_err(|e| {
             tracing::error!("Setup 2FA error: {:?}", e);
@@ -115,7 +118,10 @@ pub async fn enable_2fa(
     Json(req): Json<Enable2FaReq>,
 ) -> Result<StatusCode, AppError> {
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
-    state.auth_service.enable_2fa(user_id, req).await
+    state
+        .auth_service
+        .enable_2fa(user_id, req)
+        .await
         .map(|_| StatusCode::OK)
         .map_err(|e| {
             tracing::error!("Enable 2FA error: {:?}", e);
@@ -128,8 +134,12 @@ pub async fn sendcode(
     State(state): State<AppState>,
     Json(req): Json<SendCodeReq>,
 ) -> Result<StatusCode, AppError> {
-    req.validate().map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
-    state.auth_service.send_code(req).await
+    req.validate()
+        .map_err(|_| AppError::BadRequest("Invalid request".to_string()))?;
+    state
+        .auth_service
+        .send_code(req)
+        .await
         .map(|_| StatusCode::CREATED)
         .map_err(|e| {
             tracing::error!("send mail error: {:?}", e);

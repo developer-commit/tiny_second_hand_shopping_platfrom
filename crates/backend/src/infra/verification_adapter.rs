@@ -1,6 +1,6 @@
 // crates/backend/src/infra/verification_adapter.rs
-use async_trait::async_trait;
 use crate::ports::verification_port::{VerificationPort, VerificationPortError};
+use async_trait::async_trait;
 use rand::Rng;
 use std::collections::HashMap;
 use std::env;
@@ -11,21 +11,21 @@ use tokio::sync::RwLock;
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
-use chrono::{NaiveDate, Utc, DateTime, Duration};
+use chrono::{DateTime, Duration, NaiveDate, Utc};
 
 struct AuthCode {
     code: String,
-    time: DateTime<Utc>
+    time: DateTime<Utc>,
 }
 
 impl AuthCode {
-    fn is_verified(&self, code: &String) -> bool{
+    fn is_verified(&self, code: &String) -> bool {
         let nowtime = Utc::now() - Duration::minutes(5);
 
-        if self.time > nowtime && self.code == *code{
-            return true
+        if self.time > nowtime && self.code == *code {
+            return true;
         }
-        return false
+        return false;
     }
 }
 
@@ -43,10 +43,10 @@ impl VerificationAdapter {
         dotenvy::dotenv().ok();
 
         // 환경 변수에서 SMTP 정보 불러오기
-        let smtp_username = env::var("SMTP_USERNAME")
-            .expect(".env 파일에 SMTP_USERNAME이 설정되어 있지 않습니다.");
-        let smtp_password = env::var("SMTP_PASSWORD")
-            .expect(".env 파일에 SMTP_PASSWORD가 설정되어 있지 않습니다.");
+        let smtp_username =
+            env::var("SMTP_USERNAME").expect(".env 파일에 SMTP_USERNAME이 설정되어 있지 않습니다.");
+        let smtp_password =
+            env::var("SMTP_PASSWORD").expect(".env 파일에 SMTP_PASSWORD가 설정되어 있지 않습니다.");
 
         // 1. SMTP 인증 정보 설정
         let creds = Credentials::new(smtp_username.clone(), smtp_password);
@@ -74,24 +74,20 @@ impl VerificationPort for VerificationAdapter {
         };
         let time = Utc::now();
 
-        let authcode = AuthCode{
-            code,
-            time
-        };
+        let authcode = AuthCode { code, time };
 
         let email = Message::builder()
-            .from(
-                self.from_email
-                    .parse()
-                    .map_err(|e| VerificationPortError::SendError(format!("발신자 이메일 파싱 에러: {}", e)))?,
-            )
-            .to(
-                target
-                    .parse()
-                    .map_err(|e| VerificationPortError::SendError(format!("수신자 이메일 파싱 에러: {}", e)))?,
-            )
+            .from(self.from_email.parse().map_err(|e| {
+                VerificationPortError::SendError(format!("발신자 이메일 파싱 에러: {}", e))
+            })?)
+            .to(target.parse().map_err(|e| {
+                VerificationPortError::SendError(format!("수신자 이메일 파싱 에러: {}", e))
+            })?)
             .subject("서비스 가입 인증 코드입니다.")
-            .body(format!("요청하신 인증 코드는 다음과 같습니다:\n\n{}\n\n이 코드를 입력창에 입력해 주세요.", &authcode.code))
+            .body(format!(
+                "요청하신 인증 코드는 다음과 같습니다:\n\n{}\n\n이 코드를 입력창에 입력해 주세요.",
+                &authcode.code
+            ))
             .map_err(|e| VerificationPortError::SendError(format!("이메일 빌드 에러: {}", e)))?;
 
         self.mailer
@@ -107,7 +103,9 @@ impl VerificationPort for VerificationAdapter {
     }
 
     async fn verify_code(&self, target: &str, code: &str) -> Result<bool, VerificationPortError> {
-        if code == "123456" { return Ok(true); }
+        if code == "123456" {
+            return Ok(true);
+        }
         let mut store = self.store.write().await;
         let mut flag = false;
 

@@ -2,15 +2,15 @@
 // 목적: WebSocket 채팅 핸들러 및 REST 채팅방/이력 핸들러.
 // WebSocket 연결 수락 후 Redis Pub/Sub 메시지를 WebSocket으로 relay합니다.
 
+use crate::state::AppState;
+use crate::utils::auth::Claims;
 use crate::utils::error::AppError;
 use axum::{
     extract::{Path, State, WebSocketUpgrade},
-    response::{IntoResponse, Json},
     http::StatusCode,
+    response::{IntoResponse, Json},
 };
 use shared::dto::chat_dto::{ChatMessagePayload, ChatRoomRes, CreateChatRoomReq};
-use crate::state::AppState;
-use crate::utils::auth::Claims;
 
 use crate::utils::security::deobfuscate;
 
@@ -21,7 +21,10 @@ pub async fn create_or_get_room(
     Json(req): Json<CreateChatRoomReq>,
 ) -> Result<Json<ChatRoomRes>, AppError> {
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
-    state.chat_service.get_or_create_room(user_id, req).await
+    state
+        .chat_service
+        .get_or_create_room(user_id, req)
+        .await
         .map(Json)
         .map_err(|e| {
             tracing::error!("create_or_get_room error: {:?}", e);
@@ -38,7 +41,10 @@ pub async fn list_rooms(
     axum::Extension(claims): axum::Extension<Claims>,
 ) -> Result<Json<Vec<ChatRoomRes>>, AppError> {
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
-    state.chat_service.get_user_rooms(user_id).await
+    state
+        .chat_service
+        .get_user_rooms(user_id)
+        .await
         .map(Json)
         .map_err(|e| {
             tracing::error!("list_rooms error: {:?}", e);
@@ -56,9 +62,13 @@ pub async fn get_chat_history(
     Path(room_uid): Path<String>,
 ) -> Result<Json<Vec<ChatMessagePayload>>, AppError> {
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
-    let room_id = deobfuscate(&room_uid).map_err(|_| AppError::NotFound("Not found".to_string()))?;
-    
-    state.chat_service.get_history(user_id, room_id, None).await
+    let room_id =
+        deobfuscate(&room_uid).map_err(|_| AppError::NotFound("Not found".to_string()))?;
+
+    state
+        .chat_service
+        .get_history(user_id, room_id, None)
+        .await
         .map(Json)
         .map_err(|e| {
             tracing::error!("get_chat_history error: {:?}", e);
@@ -77,14 +87,19 @@ pub async fn send_message(
     Json(req): Json<shared::dto::chat_dto::SendMessageReq>,
 ) -> Result<Json<ChatMessagePayload>, AppError> {
     let user_id = deobfuscate(&claims.sub).map_err(|_| AppError::Unauthorized)?;
-    
-    state.chat_service.send_message(user_id, req).await
+
+    state
+        .chat_service
+        .send_message(user_id, req)
+        .await
         .map(Json)
         .map_err(|e| {
             tracing::error!("send_message error: {:?}", e);
             match e {
                 crate::service::chat_service::ChatServiceError::Forbidden => AppError::Forbidden,
-                crate::service::chat_service::ChatServiceError::RoomNotFound => AppError::NotFound("Room not found".to_string()),
+                crate::service::chat_service::ChatServiceError::RoomNotFound => {
+                    AppError::NotFound("Room not found".to_string())
+                }
                 _ => AppError::Internal,
             }
         })
@@ -99,26 +114,26 @@ pub async fn websocket_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, state, claims))
 }
 
-async fn handle_socket(
-    socket: axum::extract::ws::WebSocket,
-    state: AppState,
-    claims: Claims,
-) {
+async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState, claims: Claims) {
     use axum::extract::ws::Message;
-    use futures_util::{StreamExt, SinkExt};
+    use futures_util::{SinkExt, StreamExt};
     use redis::AsyncCommands;
 
     let user_id = match deobfuscate(&claims.sub) {
         Ok(id) => id,
         Err(_) => return,
     };
-    
+
     tracing::info!("WS connected for user_id: {}", user_id);
 
     let mut pubsub = match state.redis_client.get_async_pubsub().await {
         Ok(ps) => ps,
         Err(e) => {
-            tracing::error!("Failed to get redis pubsub for user_id {}: {:?}", user_id, e);
+            tracing::error!(
+                "Failed to get redis pubsub for user_id {}: {:?}",
+                user_id,
+                e
+            );
             return;
         }
     };

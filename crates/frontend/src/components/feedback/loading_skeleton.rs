@@ -13,8 +13,7 @@ pub enum SkeletonVariant {
 
 #[component]
 pub fn LoadingSkeleton(
-    #[prop(default = SkeletonVariant::Card)]
-    variant: SkeletonVariant,
+    #[prop(default = SkeletonVariant::Card)] variant: SkeletonVariant,
     /// 반복 횟수 (List 변형에서 행 수)
     #[prop(default = 3_usize)]
     count: usize,

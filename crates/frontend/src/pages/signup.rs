@@ -1,16 +1,16 @@
 // crates/frontend/src/pages/signup.rs
 // URL: /signup
 
+use crate::components::{
+    feedback::{AppButton, ButtonVariant},
+    input::FormInput,
+    layout::PageContainer,
+};
+use gloo_net::http::Request;
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
 use shared::dto::user_dto::SignUpReq;
-use gloo_net::http::Request;
-use crate::components::{
-    layout::PageContainer,
-    input::FormInput,
-    feedback::{AppButton, ButtonVariant},
-};
 
 #[component]
 pub fn SignupPage() -> impl IntoView {
@@ -35,7 +35,9 @@ pub fn SignupPage() -> impl IntoView {
 
             if !res.ok() {
                 let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-                let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "Failed to signup".to_string());
+                let err_msg = err_res
+                    .map(|e| e.message)
+                    .unwrap_or_else(|_| "Failed to signup".to_string());
                 return Err(err_msg);
             }
 
@@ -57,7 +59,9 @@ pub fn SignupPage() -> impl IntoView {
 
             if !res.ok() {
                 let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-                return Err(err_res.map(|e| e.message).unwrap_or_else(|_| "인증 코드 전송 실패".to_string()));
+                return Err(err_res
+                    .map(|e| e.message)
+                    .unwrap_or_else(|_| "인증 코드 전송 실패".to_string()));
             }
             Ok(())
         }
@@ -82,7 +86,9 @@ pub fn SignupPage() -> impl IntoView {
             match res {
                 Ok(_) => {
                     let nav = navigate.clone();
-                    success_msg.set(Some("회원가입이 완료되었습니다. 로그인해주세요.".to_string()));
+                    success_msg.set(Some(
+                        "회원가입이 완료되었습니다. 로그인해주세요.".to_string(),
+                    ));
                     nav("/login", Default::default());
                 }
                 Err(e) => {
@@ -128,7 +134,7 @@ pub fn SignupPage() -> impl IntoView {
                         signal=contact_email
                         error=Signal::derive(|| None)
                     />
-                    
+
                     <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                         <div style="flex: 1;">
                             <FormInput
@@ -158,7 +164,7 @@ pub fn SignupPage() -> impl IntoView {
 
                     {move || error_msg.get().map(|e| view! { <p class="error" style="color: red;">{e}</p> })}
                     {move || success_msg.get().map(|m| view! { <p class="success" style="color: green;">{m}</p> })}
-                    
+
                     <AppButton
                         variant=ButtonVariant::Primary
                         loading=is_loading

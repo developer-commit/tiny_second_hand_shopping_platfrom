@@ -2,9 +2,9 @@
 // 목적: escrow_trades 테이블 Entity.
 // 스키마 은닉: amount→locked_funds, status→step, auto_confirm_at→auto_finalize_deadline
 
+use crate::utils::security::{SecurityError, obfuscate};
 use sea_orm::entity::prelude::*;
 use shared::dto::escrow_dto::{SafeTradeStatusRes, TradeStep};
-use crate::utils::security::{obfuscate, SecurityError};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "escrow_trades")]
@@ -16,13 +16,13 @@ pub struct Model {
     pub seller_id: i64,
     pub currency: String,
     pub amount: Decimal,
-    pub platform_fee: Decimal,          // 프론트에 노출 금지 (수수료 정보 은닉)
+    pub platform_fee: Decimal, // 프론트에 노출 금지 (수수료 정보 은닉)
     pub status: String,
-    
+
     // ETH Specific fields
-    pub blockchain_tx_hash: Option<String>, 
-    pub contract_trade_id: Option<i64>,     
-    
+    pub blockchain_tx_hash: Option<String>,
+    pub contract_trade_id: Option<i64>,
+
     pub auto_confirm_at: Option<DateTimeWithTimeZone>,
     pub dispute_reason: Option<String>,
     pub created_at: DateTimeWithTimeZone,
@@ -31,20 +31,32 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(belongs_to = "super::product::Entity", from = "Column::ProductId", to = "super::product::Column::Id")]
+    #[sea_orm(
+        belongs_to = "super::product::Entity",
+        from = "Column::ProductId",
+        to = "super::product::Column::Id"
+    )]
     Product,
-    #[sea_orm(belongs_to = "super::user::Entity", from = "Column::BuyerId", to = "super::user::Column::Id")]
+    #[sea_orm(
+        belongs_to = "super::user::Entity",
+        from = "Column::BuyerId",
+        to = "super::user::Column::Id"
+    )]
     Buyer,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
 
 impl Related<super::product::Entity> for Entity {
-    fn to() -> RelationDef { Relation::Product.def() }
+    fn to() -> RelationDef {
+        Relation::Product.def()
+    }
 }
 
 impl Related<super::user::Entity> for Entity {
-    fn to() -> RelationDef { Relation::Buyer.def() }
+    fn to() -> RelationDef {
+        Relation::Buyer.def()
+    }
 }
 
 impl TryFrom<Model> for SafeTradeStatusRes {
@@ -54,11 +66,11 @@ impl TryFrom<Model> for SafeTradeStatusRes {
         let step = match m.status.as_str() {
             "pending_deposit" => TradeStep::PendingDeposit,
             "deposited" => TradeStep::Deposited,
-            "received"  => TradeStep::Received,
-            "disputed"  => TradeStep::Disputed,
-            "settled"   => TradeStep::Settled,
-            "refunded"  => TradeStep::Refunded,
-            _           => TradeStep::Deposited,
+            "received" => TradeStep::Received,
+            "disputed" => TradeStep::Disputed,
+            "settled" => TradeStep::Settled,
+            "refunded" => TradeStep::Refunded,
+            _ => TradeStep::Deposited,
         };
         let currency_enum = match m.currency.as_str() {
             "ETH" => shared::dto::common_dto::Currency::ETH,

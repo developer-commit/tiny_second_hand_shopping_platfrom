@@ -86,8 +86,8 @@ impl std::fmt::Display for SecretString {
 /// - `Clone` 미구현 → 복사 전파 방지
 /// - 복호화는 KMS 키를 보유한 infra 계층에서만 수행
 pub struct EncryptedKey {
-    ciphertext: Vec<u8>,    // AES-GCM 암호문 + nonce
-    key_id: String,         // 어떤 KMS 키로 암호화했는지 참조
+    ciphertext: Vec<u8>, // AES-GCM 암호문 + nonce
+    key_id: String,      // 어떤 KMS 키로 암호화했는지 참조
 }
 
 impl EncryptedKey {
@@ -111,8 +111,8 @@ impl std::fmt::Debug for EncryptedKey {
 // ─── 암호화 유틸리티 ─────────────────────────────────────────────────────────
 
 use aes_gcm::{
-    aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
+    aead::{Aead, KeyInit},
 };
 use rand::RngCore;
 
@@ -123,18 +123,22 @@ pub fn encrypt_sensitive(plaintext: &[u8], key: &[u8; 32]) -> Result<EncryptedKe
     let mut nonce_bytes = [0u8; 12];
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
-    
-    let ciphertext = cipher.encrypt(nonce, plaintext)
+
+    let ciphertext = cipher
+        .encrypt(nonce, plaintext)
         .map_err(|e| SecurityError::EncryptionFailed(e.to_string()))?;
-        
+
     let mut final_data = nonce_bytes.to_vec();
     final_data.extend_from_slice(&ciphertext);
-    
+
     Ok(EncryptedKey::new(final_data, "default-key-id".to_string()))
 }
 
 /// AES-256-GCM 복호화. infra 계층의 KMS 어댑터에서만 사용.
-pub fn decrypt_sensitive(encrypted: &EncryptedKey, key: &[u8; 32]) -> Result<Vec<u8>, SecurityError> {
+pub fn decrypt_sensitive(
+    encrypted: &EncryptedKey,
+    key: &[u8; 32],
+) -> Result<Vec<u8>, SecurityError> {
     let data = encrypted.ciphertext();
     if data.len() < 12 {
         return Err(SecurityError::InvalidKeyLength);
@@ -142,7 +146,8 @@ pub fn decrypt_sensitive(encrypted: &EncryptedKey, key: &[u8; 32]) -> Result<Vec
     let (nonce_bytes, ciphertext) = data.split_at(12);
     let nonce = Nonce::from_slice(nonce_bytes);
     let cipher = Aes256Gcm::new(key.into());
-    
-    cipher.decrypt(nonce, ciphertext)
+
+    cipher
+        .decrypt(nonce, ciphertext)
         .map_err(|_| SecurityError::DecryptionFailed)
 }

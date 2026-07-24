@@ -13,12 +13,20 @@ pub fn ImageCarousel(urls: Vec<String>) -> impl IntoView {
 
     let cloned_urls = StoredValue::new(urls);
     let current_url = move || {
-        cloned_urls.get_value().get(current.get()).cloned().unwrap_or_default()
+        cloned_urls
+            .get_value()
+            .get(current.get())
+            .cloned()
+            .unwrap_or_default()
     };
 
     let on_prev = move |_| {
         current.update(|i| {
-            if *i > 0 { *i -= 1; } else { *i = total.saturating_sub(1); }
+            if *i > 0 {
+                *i -= 1;
+            } else {
+                *i = total.saturating_sub(1);
+            }
         });
     };
     let on_next = move |_| {

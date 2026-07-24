@@ -5,10 +5,7 @@
 use leptos::prelude::*;
 
 #[component]
-pub fn SearchBar(
-    keyword: RwSignal<String>,
-    on_search: Callback<()>,
-) -> impl IntoView {
+pub fn SearchBar(keyword: RwSignal<String>, on_search: Callback<()>) -> impl IntoView {
     let on_keydown = move |ev: leptos::ev::KeyboardEvent| {
         if ev.key() == "Enter" {
             on_search.run(());

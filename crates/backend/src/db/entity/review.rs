@@ -1,7 +1,7 @@
 // crates/backend/src/db/entity/review.rs
+use crate::utils::security::{SecurityError, obfuscate};
 use sea_orm::entity::prelude::*;
 use shared::dto::review_dto::ReviewRes;
-use crate::utils::security::{obfuscate, SecurityError};
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "reviews")]
@@ -18,7 +18,11 @@ pub struct Model {
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(belongs_to = "super::escrow_trade::Entity", from = "Column::TradeId", to = "super::escrow_trade::Column::Id")]
+    #[sea_orm(
+        belongs_to = "super::escrow_trade::Entity",
+        from = "Column::TradeId",
+        to = "super::escrow_trade::Column::Id"
+    )]
     EscrowTrade,
 }
 

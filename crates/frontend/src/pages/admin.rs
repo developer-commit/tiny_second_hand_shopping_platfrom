@@ -2,18 +2,21 @@
 // URL: /admin
 // [접근 제한] is_admin Signal이 false이면 접근 차단
 
-use leptos::prelude::*;
-use leptos_meta::Title;
-use leptos_router::hooks::use_navigate;
 use crate::components::{
-    layout::PageContainer,
     display::StatCard,
     feedback::button::{AppButton, ButtonVariant},
     input::form_input::FormInput,
+    layout::PageContainer,
 };
 use crate::models::auth_model::AuthStore;
-use shared::dto::admin_dto::{PlatformStatsRes, ForceSettleReq, ForceSettleTarget, BanUserReq, HideProductReq, AdminReportListRes};
 use gloo_net::http::Request;
+use leptos::prelude::*;
+use leptos_meta::Title;
+use leptos_router::hooks::use_navigate;
+use shared::dto::admin_dto::{
+    AdminReportListRes, BanUserReq, ForceSettleReq, ForceSettleTarget, HideProductReq,
+    PlatformStatsRes,
+};
 
 async fn fetch_admin_stats(token: &str) -> Result<PlatformStatsRes, String> {
     let url = "/v1/admin/stats";
@@ -95,10 +98,14 @@ async fn hide_product_api(token: &str, item_uid: &str, req: &HideProductReq) -> 
 pub fn AdminPage() -> impl IntoView {
     let auth_store = expect_context::<AuthStore>();
     let navigate = use_navigate();
-    
+
     // Redirect if not admin
     Effect::new(move |_| {
-        let is_admin = auth_store.current_user.get().map(|u| u.account_status == "admin").unwrap_or(false);
+        let is_admin = auth_store
+            .current_user
+            .get()
+            .map(|u| u.account_status == "admin")
+            .unwrap_or(false);
         if !is_admin {
             navigate("/", Default::default());
         }
@@ -109,7 +116,9 @@ pub fn AdminPage() -> impl IntoView {
     let stats_res = LocalResource::new(move || {
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             fetch_admin_stats(&t).await
         }
     });
@@ -119,9 +128,7 @@ pub fn AdminPage() -> impl IntoView {
     let force_settle_action = Action::new_local(move |req: &ForceSettleReq| {
         let t = token.get();
         let req_clone = req.clone();
-        async move {
-            force_settle(&t, &req_clone).await
-        }
+        async move { force_settle(&t, &req_clone).await }
     });
 
     let on_force_settle = move |ev: leptos::ev::SubmitEvent| {
@@ -137,7 +144,9 @@ pub fn AdminPage() -> impl IntoView {
     let reports_res = LocalResource::new(move || {
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             fetch_admin_reports(&t).await
         }
     });
@@ -147,9 +156,7 @@ pub fn AdminPage() -> impl IntoView {
     let ban_action = Action::new_local(move |req: &(String, BanUserReq)| {
         let t = token.get();
         let req_clone = req.clone();
-        async move {
-            ban_user_api(&t, &req_clone.0, &req_clone.1).await
-        }
+        async move { ban_user_api(&t, &req_clone.0, &req_clone.1).await }
     });
 
     let on_ban_user = move |ev: leptos::ev::SubmitEvent| {
@@ -165,9 +172,7 @@ pub fn AdminPage() -> impl IntoView {
     let hide_action = Action::new_local(move |req: &(String, HideProductReq)| {
         let t = token.get();
         let req_clone = req.clone();
-        async move {
-            hide_product_api(&t, &req_clone.0, &req_clone.1).await
-        }
+        async move { hide_product_api(&t, &req_clone.0, &req_clone.1).await }
     });
 
     let on_hide_product = move |ev: leptos::ev::SubmitEvent| {
@@ -183,7 +188,7 @@ pub fn AdminPage() -> impl IntoView {
         <PageContainer title="관리자 어드민">
             <div class="admin-page" style="display: flex; flex-direction: column; gap: 2rem; padding-top: 2rem;">
                 <h1 style="font-size: 1.5rem; font-weight: bold;">"관리자 패널"</h1>
-                
+
                 <section class="stats">
                     <h2 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">"플랫폼 통계"</h2>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
@@ -202,7 +207,7 @@ pub fn AdminPage() -> impl IntoView {
                         </Suspense>
                     </div>
                 </section>
-                
+
                 <section class="disputes">
                     <h2 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 1rem;">"운영 관리"</h2>
                     <div style="display: flex; flex-direction: column; gap: 1.5rem;">

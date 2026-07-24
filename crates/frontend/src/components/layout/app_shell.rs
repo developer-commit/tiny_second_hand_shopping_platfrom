@@ -2,8 +2,8 @@
 // 목적: 전체 레이아웃 래퍼 — <NavBar/> + <main> + <BottomNav/>
 // 모든 페이지는 이 컴포넌트 안에 렌더링됩니다.
 
+use super::{BottomNav, NavBar};
 use leptos::prelude::*;
-use super::{NavBar, BottomNav};
 
 #[component]
 pub fn AppShell(children: Children) -> impl IntoView {

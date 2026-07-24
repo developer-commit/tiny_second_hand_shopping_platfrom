@@ -7,8 +7,6 @@
 // - JwtSecret은 Debug 미구현 SecretString 래퍼로 보관
 // - 암호화 키는 직접 노출하지 않고 어댑터 내부에 캡슐화
 
-use std::sync::Arc;
-use sea_orm::DatabaseConnection;
 use crate::{
     service::traits::{
         AdminServiceTrait, AuthServiceTrait, ChatServiceTrait, EscrowServiceTrait,
@@ -17,13 +15,10 @@ use crate::{
     },
     utils::{auth::JwtSecret, blockchain::BlockchainManager},
 };
+use sea_orm::DatabaseConnection;
+use std::sync::Arc;
 
-use std::{
-    collections::HashMap,
-    net::IpAddr,
-    sync::{Mutex},
-    time::Instant,
-};
+use std::{collections::HashMap, net::IpAddr, sync::Mutex, time::Instant};
 
 /// Axum 전역 공유 상태 — Clone은 Arc 내부 참조만 복제
 pub struct AppState {
@@ -97,9 +92,13 @@ pub trait DbClone {
 impl DbClone for DatabaseConnection {
     fn clone_conn(&self) -> Self {
         match self {
-            DatabaseConnection::SqlxPostgresPoolConnection(pool) => DatabaseConnection::SqlxPostgresPoolConnection(pool.clone()),
+            DatabaseConnection::SqlxPostgresPoolConnection(pool) => {
+                DatabaseConnection::SqlxPostgresPoolConnection(pool.clone())
+            }
             #[cfg(test)]
-            DatabaseConnection::MockDatabaseConnection(mock) => DatabaseConnection::MockDatabaseConnection(mock.clone()),
+            DatabaseConnection::MockDatabaseConnection(mock) => {
+                DatabaseConnection::MockDatabaseConnection(mock.clone())
+            }
             DatabaseConnection::Disconnected => DatabaseConnection::Disconnected,
             _ => panic!("Unsupported db variant for clone_conn: {:?}", self),
         }

@@ -3,15 +3,15 @@
 // shared::dto의 ItemDetailRes를 받아 Leptos RwSignal로 변환합니다.
 // is_available Signal로 구매 버튼 표시 여부를 반응적으로 제어합니다.
 
+use gloo_net::http::Request;
 use leptos::prelude::*;
 use shared::dto::product_dto::{ItemDetailRes, ItemState, ItemSummaryRes, ProductSearchQuery};
-use gloo_net::http::Request;
 
 const API_BASE_URL: &str = "/v1";
 
 #[derive(Clone, Debug)]
 pub struct ProductUIState {
-    pub item_uid: String,             // 라우팅/API 호출용 (불변)
+    pub item_uid: String, // 라우팅/API 호출용 (불변)
     pub seller_trust_score: RwSignal<Option<f64>>,
     pub heading: RwSignal<String>,
     pub asking_price: RwSignal<f64>,
@@ -29,9 +29,9 @@ impl ProductUIState {
         let state_signal = RwSignal::new(dto.current_state);
         let is_available = Signal::derive(move || state_signal.get() == ItemState::OnSale);
         let state_badge = Signal::derive(move || match state_signal.get() {
-            ItemState::OnSale   => "판매중".to_string(),
+            ItemState::OnSale => "판매중".to_string(),
             ItemState::Reserved => "예약중".to_string(),
-            ItemState::Sold     => "판매완료".to_string(),
+            ItemState::Sold => "판매완료".to_string(),
         });
 
         ProductUIState {
@@ -52,25 +52,37 @@ impl ProductUIState {
 pub async fn fetch_products(query: ProductSearchQuery) -> Result<Vec<ItemSummaryRes>, String> {
     let mut url = format!("{}/products", API_BASE_URL);
     let mut params = Vec::new();
-    
-    if let Some(k) = query.keyword { params.push(format!("keyword={}", k)); }
-    if let Some(c) = query.group_category { params.push(format!("group_category={}", c)); }
-    if let Some(t) = query.item_tag { params.push(format!("item_tag={}", t)); }
-    if let Some(p) = query.page { params.push(format!("page={}", p)); }
-    if let Some(ps) = query.page_size { params.push(format!("page_size={}", ps)); }
-    
+
+    if let Some(k) = query.keyword {
+        params.push(format!("keyword={}", k));
+    }
+    if let Some(c) = query.group_category {
+        params.push(format!("group_category={}", c));
+    }
+    if let Some(t) = query.item_tag {
+        params.push(format!("item_tag={}", t));
+    }
+    if let Some(uid) = query.owner_uid {
+        params.push(format!("owner_uid={}", uid));
+    }
+    if let Some(p) = query.page {
+        params.push(format!("page={}", p));
+    }
+    if let Some(ps) = query.page_size {
+        params.push(format!("page_size={}", ps));
+    }
+
     if !params.is_empty() {
         url = format!("{}?{}", url, params.join("&"));
     }
 
-    let res = Request::get(&url)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let res = Request::get(&url).send().await.map_err(|e| e.to_string())?;
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 
@@ -80,14 +92,13 @@ pub async fn fetch_products(query: ProductSearchQuery) -> Result<Vec<ItemSummary
 /// GET /products/{item_uid} - 상품 상세 조회 API
 pub async fn fetch_product_detail(item_uid: String) -> Result<ItemDetailRes, String> {
     let url = format!("{}/products/{}", API_BASE_URL, item_uid);
-    let res = Request::get(&url)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
+    let res = Request::get(&url).send().await.map_err(|e| e.to_string())?;
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 
@@ -95,7 +106,9 @@ pub async fn fetch_product_detail(item_uid: String) -> Result<ItemDetailRes, Str
 }
 
 /// 상품 목록 리소스 생성 헬퍼
-pub fn create_products_resource(query: impl Fn() -> ProductSearchQuery + Send + Sync + 'static) -> LocalResource<Result<Vec<ItemSummaryRes>, String>> {
+pub fn create_products_resource(
+    query: impl Fn() -> ProductSearchQuery + Send + Sync + 'static,
+) -> LocalResource<Result<Vec<ItemSummaryRes>, String>> {
     LocalResource::new(move || {
         let q = query();
         async move { fetch_products(q).await }

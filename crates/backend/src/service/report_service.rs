@@ -5,11 +5,11 @@
 // - 1유저 1상품 1회 신고 제한은 DB UNIQUE 제약(reports.reporter_id + product_id)으로 강제
 // - 누적 신고 횟수 초과 시 상품 자동 차단 / 유저 계정 dormant 전환
 
+use crate::service::traits::ReportServiceTrait;
+use async_trait::async_trait;
 use sea_orm::DatabaseConnection;
 use shared::dto::report_dto::{ReportAckRes, SubmitReportReq};
 use thiserror::Error;
-use async_trait::async_trait;
-use crate::service::traits::ReportServiceTrait;
 
 /// 자동 제재 임계값
 const PRODUCT_AUTO_BLOCK_THRESHOLD: i32 = 5;
@@ -47,10 +47,16 @@ impl ReportServiceTrait for ReportService {
         req: SubmitReportReq,
     ) -> Result<ReportAckRes, ReportServiceError> {
         use crate::db::entity::{product, report};
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, TransactionTrait};
         use crate::utils::security::obfuscate;
+        use sea_orm::{
+            ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait,
+        };
 
-        let txn = self.db.begin().await.map_err(|e| ReportServiceError::Internal(e.to_string()))?;
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
 
         let prod = product::Entity::find_by_id(product_id)
             .one(&txn)
@@ -82,9 +88,14 @@ impl ReportServiceTrait for ReportService {
             ..Default::default()
         };
 
-        let inserted = r.insert(&txn).await.map_err(|e| ReportServiceError::Internal(e.to_string()))?;
+        let inserted = r
+            .insert(&txn)
+            .await
+            .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
 
-        txn.commit().await.map_err(|e| ReportServiceError::Internal(e.to_string()))?;
+        txn.commit()
+            .await
+            .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
 
         // Apply auto moderation
         if let Err(e) = self.apply_auto_moderation(product_id, prod.seller_id).await {
@@ -107,7 +118,9 @@ impl ReportService {
         seller_id: i64,
     ) -> Result<(), ReportServiceError> {
         use crate::db::entity::{product, report, user};
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, PaginatorTrait};
+        use sea_orm::{
+            ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, Set,
+        };
 
         let report_count = report::Entity::find()
             .filter(report::Column::ProductId.eq(product_id))
@@ -120,42 +133,46 @@ impl ReportService {
                 .one(&self.db)
                 .await
                 .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
-                
+
             if let Some(p) = prod {
                 let mut p: product::ActiveModel = p.into();
                 p.status = Set("blocked".to_string());
-                p.update(&self.db).await.map_err(|e| ReportServiceError::Internal(e.to_string()))?;
+                p.update(&self.db)
+                    .await
+                    .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
             }
-            
+
             // Check seller's total reports across all their products
             let all_seller_products = product::Entity::find()
                 .filter(product::Column::SellerId.eq(seller_id))
                 .all(&self.db)
                 .await
                 .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
-                
+
             let product_ids: Vec<i64> = all_seller_products.into_iter().map(|p| p.id).collect();
-            
+
             let total_seller_reports = report::Entity::find()
                 .filter(report::Column::ProductId.is_in(product_ids))
                 .count(&self.db)
                 .await
                 .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
-                
+
             if total_seller_reports >= USER_DORMANT_THRESHOLD as u64 {
                 let u = user::Entity::find_by_id(seller_id)
                     .one(&self.db)
                     .await
                     .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
-                    
+
                 if let Some(u) = u {
                     let mut u: user::ActiveModel = u.into();
                     u.status = Set("dormant".to_string());
-                    u.update(&self.db).await.map_err(|e| ReportServiceError::Internal(e.to_string()))?;
+                    u.update(&self.db)
+                        .await
+                        .map_err(|e| ReportServiceError::Internal(e.to_string()))?;
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -164,9 +181,9 @@ impl ReportService {
 mod tests {
     use super::*;
     use crate::db::entity::{product, report, user};
-    use sea_orm::{DatabaseBackend, MockDatabase, Value};
     use chrono::Utc;
     use rust_decimal::Decimal;
+    use sea_orm::{DatabaseBackend, MockDatabase, Value};
     use std::collections::BTreeMap;
 
     #[tokio::test]
@@ -185,7 +202,7 @@ mod tests {
             created_at: now,
             updated_at: now,
         };
-        
+
         let report_model = report::Model {
             id: 1,
             reporter_id: 100,
@@ -206,9 +223,11 @@ mod tests {
             .into_connection();
 
         let service = ReportService::new(db);
-        let req = SubmitReportReq { cause: "spam".to_string() };
+        let req = SubmitReportReq {
+            cause: "spam".to_string(),
+        };
         let res = service.submit_report(100, 1, req).await;
-        
+
         assert!(res.is_ok());
     }
 
@@ -234,9 +253,11 @@ mod tests {
             .into_connection();
 
         let service = ReportService::new(db);
-        let req = SubmitReportReq { cause: "spam".to_string() };
+        let req = SubmitReportReq {
+            cause: "spam".to_string(),
+        };
         let res = service.submit_report(100, 1, req).await;
-        
+
         assert!(matches!(res, Err(ReportServiceError::SelfReport)));
     }
 }

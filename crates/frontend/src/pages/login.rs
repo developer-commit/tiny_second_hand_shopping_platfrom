@@ -2,16 +2,16 @@
 // URL: /login
 // 목적: 로그인 페이지
 
+use crate::components::{
+    feedback::{AppButton, ButtonVariant},
+    input::FormInput,
+    layout::PageContainer,
+};
+use crate::models::auth_model::{AuthStore, create_login_action};
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::use_navigate;
 use shared::dto::user_dto::LoginReq;
-use crate::components::{
-    layout::PageContainer,
-    input::FormInput,
-    feedback::{AppButton, ButtonVariant},
-};
-use crate::models::auth_model::{AuthStore, create_login_action};
 
 #[component]
 pub fn LoginPage() -> impl IntoView {
@@ -23,7 +23,7 @@ pub fn LoginPage() -> impl IntoView {
 
     let navigate = use_navigate();
     let auth_store = expect_context::<AuthStore>();
-    
+
     let login_action = create_login_action(auth_store);
     let is_loading = login_action.pending();
 
@@ -76,7 +76,7 @@ pub fn LoginPage() -> impl IntoView {
                                 error=Signal::derive(|| None)
                             />
                             {move || error_msg.get().map(|e| view! { <p class="error" style="color: red;">{e}</p> })}
-                            
+
                             <AppButton
                                 variant=ButtonVariant::Primary
                                 loading=is_loading

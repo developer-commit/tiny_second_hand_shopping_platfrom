@@ -1,21 +1,21 @@
 // crates/frontend/src/pages/chat.rs
 // URL: /chat
 
+use crate::components::{
+    display::ChatBubble,
+    feedback::{AppButton, ButtonVariant},
+    input::FormInput,
+    layout::PageContainer,
+};
+use crate::models::{
+    auth_model::AuthStore,
+    chat_store::{ChatStore, fetch_chat_messages, fetch_chat_rooms},
+};
+use gloo_net::http::Request;
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::hooks::use_query_map;
 use shared::dto::chat_dto::SendMessageReq;
-use crate::components::{
-    layout::PageContainer,
-    display::ChatBubble,
-    input::FormInput,
-    feedback::{AppButton, ButtonVariant},
-};
-use crate::models::{
-    chat_store::{ChatStore, fetch_chat_rooms, fetch_chat_messages},
-    auth_model::AuthStore,
-};
-use gloo_net::http::Request;
 
 async fn send_message_http(token: &str, req: &SendMessageReq) -> Result<(), String> {
     let url = format!("{}/chat/rooms/{}/messages", "/v1", req.room_uid);
@@ -37,21 +37,23 @@ async fn send_message_http(token: &str, req: &SendMessageReq) -> Result<(), Stri
 pub fn ChatPage() -> impl IntoView {
     let auth_store = expect_context::<AuthStore>();
     let chat_store = expect_context::<ChatStore>();
-    
+
     let token = Signal::derive(move || auth_store.bearer_header().unwrap_or_default());
     let msg_input = RwSignal::new(String::new());
 
     let rooms_res = LocalResource::new(move || {
         let t = token.get();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             fetch_chat_rooms(&t).await
         }
     });
-    
+
     let active_room_uid = chat_store.active_room;
     let messages = chat_store.messages;
-    
+
     let query = use_query_map();
     Effect::new(move |_| {
         if let Some(uid) = query.with(|q| q.get("room_uid")) {
@@ -77,35 +79,45 @@ pub fn ChatPage() -> impl IntoView {
 
     Effect::new(move |_| {
         let t = token.get();
-        if t.is_empty() { return; }
-        
+        if t.is_empty() {
+            return;
+        }
+
         let window = web_sys::window().unwrap();
         let host = window.location().host().unwrap();
-        let protocol = if window.location().protocol().unwrap() == "https:" { "wss:" } else { "ws:" };
+        let protocol = if window.location().protocol().unwrap() == "https:" {
+            "wss:"
+        } else {
+            "ws:"
+        };
         let ws_url = format!("{}//{}/v1/chat/ws?token={}", protocol, host, t);
-        
+
         if let Ok(ws) = web_sys::WebSocket::new(&ws_url) {
             let chat_store_clone = chat_store.clone();
-            let onmessage_callback = wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(move |e: web_sys::MessageEvent| {
-                use wasm_bindgen::JsCast;
-                if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
-                    let text: String = txt.into();
-                    if let Ok(payload) = serde_json::from_str::<shared::dto::chat_dto::ChatMessagePayload>(&text) {
-                        chat_store_clone.upsert_message(payload.clone());
-                        
-                        if let Some(Ok(rooms)) = rooms_res.get_untracked().as_deref() {
-                            if !rooms.iter().any(|r| r.room_uid == payload.room_uid) {
-                                rooms_res.refetch();
+            let onmessage_callback = wasm_bindgen::closure::Closure::<dyn FnMut(_)>::new(
+                move |e: web_sys::MessageEvent| {
+                    use wasm_bindgen::JsCast;
+                    if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
+                        let text: String = txt.into();
+                        if let Ok(payload) =
+                            serde_json::from_str::<shared::dto::chat_dto::ChatMessagePayload>(&text)
+                        {
+                            chat_store_clone.upsert_message(payload.clone());
+
+                            if let Some(Ok(rooms)) = rooms_res.get_untracked().as_deref() {
+                                if !rooms.iter().any(|r| r.room_uid == payload.room_uid) {
+                                    rooms_res.refetch();
+                                }
                             }
                         }
                     }
-                }
-            });
-            
+                },
+            );
+
             use wasm_bindgen::JsCast;
             ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
             onmessage_callback.forget();
-            
+
             on_cleanup(move || {
                 let _ = ws.close();
             });
@@ -116,28 +128,34 @@ pub fn ChatPage() -> impl IntoView {
         ev.prevent_default();
         if let Some(room_uid) = active_room_uid.get() {
             let text = msg_input.get();
-            if text.is_empty() { return; }
-            
+            if text.is_empty() {
+                return;
+            }
+
             let req = SendMessageReq {
                 room_uid: room_uid.clone(),
                 text: text.clone(),
             };
-            
+
             let fake_uid = format!("pending-{}", js_sys::Date::now() as i64);
             let fake_msg = shared::dto::chat_dto::ChatMessagePayload {
                 msg_uid: fake_uid.clone(),
                 room_uid: room_uid.clone(),
-                sender_uid: auth_store.current_user.get().map(|u| u.user_uid).unwrap_or_default(),
+                sender_uid: auth_store
+                    .current_user
+                    .get()
+                    .map(|u| u.user_uid)
+                    .unwrap_or_default(),
                 text: text.clone(),
                 read_status: false,
                 sent_at: chrono::Utc::now().to_rfc3339(),
             };
             chat_store.push_message(fake_msg);
             msg_input.set(String::new());
-            
+
             let t = token.get_untracked();
             let chat_store_clone = chat_store.clone();
-            
+
             is_sending.set(true);
             leptos::task::spawn_local(async move {
                 if send_message_http(&t, &req).await.is_err() {
@@ -167,7 +185,7 @@ pub fn ChatPage() -> impl IntoView {
                                         let bg = if is_active { "#e7f1ff" } else { "#ffffff" };
                                         let border = if is_active { "2px solid #0d6efd" } else { "1px solid #dee2e6" };
                                         view! {
-                                            <div 
+                                            <div
                                                 style=format!("padding: 1rem; border-radius: 8px; cursor: pointer; background: {}; border: {}; transition: background 0.2s;", bg, border)
                                                 on:click=move |_| chat_store.set_active_room(Some(room.room_uid.clone()))
                                             >
@@ -195,7 +213,7 @@ pub fn ChatPage() -> impl IntoView {
                         })}
                     </Suspense>
                 </aside>
-                
+
                 <section class="chat-window" style="flex: 1; display: flex; flex-direction: column; background: #ffffff; border: 2px solid #dee2e6; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                     {move || if active_room_uid.get().is_some() {
                         view! {
@@ -215,7 +233,7 @@ pub fn ChatPage() -> impl IntoView {
                                     }
                                 />
                             </div>
-                            
+
                             <form on:submit=on_send style="display: flex; gap: 1rem; padding: 1rem; border-top: 2px solid #dee2e6; background: #ffffff; align-items: center;">
                                 <div style="flex: 1;">
                                     <FormInput

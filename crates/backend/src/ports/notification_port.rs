@@ -2,9 +2,9 @@
 // 목적: 알림 생성 및 발송 Port.
 
 use async_trait::async_trait;
-use thiserror::Error;
 #[cfg(test)]
 use mockall::automock;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NotificationPortError {
@@ -17,8 +17,8 @@ pub enum NotificationPortError {
 /// 알림 생성 요청 구조체
 #[derive(Debug, Clone)]
 pub struct CreateNotificationCmd {
-    pub user_id: i64,       // 수신자 내부 ID
-    pub noti_type: String,  // "chat" | "escrow_update" | "system" | "warning"
+    pub user_id: i64,      // 수신자 내부 ID
+    pub noti_type: String, // "chat" | "escrow_update" | "system" | "warning"
     pub reference_id: Option<i64>,
     pub message: String,
 }
@@ -30,8 +30,5 @@ pub struct CreateNotificationCmd {
 #[async_trait]
 pub trait NotificationPort: Send + Sync {
     /// 알림을 DB에 저장하고 Redis Pub/Sub으로 발송
-    async fn send(
-        &self,
-        cmd: CreateNotificationCmd,
-    ) -> Result<(), NotificationPortError>;
+    async fn send(&self, cmd: CreateNotificationCmd) -> Result<(), NotificationPortError>;
 }

@@ -1,11 +1,11 @@
+use crate::state::AppState;
+use crate::utils::auth::{Claims, verify_token};
 use axum::{
     extract::Request,
-    http::{header, StatusCode, HeaderMap},
+    http::{HeaderMap, StatusCode, header},
     middleware::Next,
     response::Response,
 };
-use crate::utils::auth::{verify_token, Claims};
-use crate::state::AppState;
 
 use std::{
     collections::HashMap,
@@ -50,7 +50,6 @@ pub async fn email_rate_limit_middleware(
     // 2. 통과했으므로 비동기로 다음 핸들러 실행
     Ok(next.run(request).await)
 }
-
 
 // IP 추출 헬퍼 함수
 fn extract_ip(headers: &HeaderMap) -> IpAddr {

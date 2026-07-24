@@ -3,9 +3,9 @@
 // 로그인 상태, JWT 토큰, 현재 사용자 프로필을 Leptos RwSignal로 관리합니다.
 // 컴포넌트가 is_authenticated Signal을 구독하여 로그인 여부에 따라 UI를 분기합니다.
 
-use leptos::prelude::*;
-use shared::dto::user_dto::{AuthTokenRes, UserProfileRes, LoginReq};
 use gloo_net::http::Request;
+use leptos::prelude::*;
+use shared::dto::user_dto::{AuthTokenRes, LoginReq, UserProfileRes};
 
 const TOKEN_KEY: &str = "eth_access_token";
 const API_BASE_URL: &str = "/v1";
@@ -81,11 +81,17 @@ impl AuthStore {
 }
 
 /// 로그인 API Action (POST /auth/login & GET /users/me)
-pub fn create_login_action(auth_store: AuthStore) -> Action<LoginReq, Result<shared::dto::user_dto::LoginResponse, String>, leptos::prelude::LocalStorage> {
+pub fn create_login_action(
+    auth_store: AuthStore,
+) -> Action<
+    LoginReq,
+    Result<shared::dto::user_dto::LoginResponse, String>,
+    leptos::prelude::LocalStorage,
+> {
     Action::new_local(move |req: &LoginReq| {
         let auth_store = auth_store.clone();
         let req_clone = req.clone();
-        
+
         async move {
             // 1. POST /auth/login
             let login_res = Request::post(&format!("{}/auth/login", API_BASE_URL))
@@ -96,29 +102,40 @@ pub fn create_login_action(auth_store: AuthStore) -> Action<LoginReq, Result<sha
                 .map_err(|e| e.to_string())?;
 
             if !login_res.ok() {
-        let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = login_res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
-        return Err(err_msg);
-    }
+                let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> =
+                    login_res.json().await;
+                let err_msg = err_res
+                    .map(|e| e.message)
+                    .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+                return Err(err_msg);
+            }
 
-            let response_data: shared::dto::user_dto::LoginResponse = login_res.json().await.map_err(|e| e.to_string())?;
+            let response_data: shared::dto::user_dto::LoginResponse =
+                login_res.json().await.map_err(|e| e.to_string())?;
 
             match response_data {
                 shared::dto::user_dto::LoginResponse::Success(token_res) => {
                     // 2. GET /users/me
                     let profile_res = Request::get(&format!("{}/users/me", API_BASE_URL))
-                        .header("Authorization", &format!("Bearer {}", token_res.access_token))
+                        .header(
+                            "Authorization",
+                            &format!("Bearer {}", token_res.access_token),
+                        )
                         .send()
                         .await
                         .map_err(|e| e.to_string())?;
 
                     if !profile_res.ok() {
-                        let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = profile_res.json().await;
-                        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+                        let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> =
+                            profile_res.json().await;
+                        let err_msg = err_res
+                            .map(|e| e.message)
+                            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
                         return Err(err_msg);
                     }
 
-                    let profile: UserProfileRes = profile_res.json().await.map_err(|e| e.to_string())?;
+                    let profile: UserProfileRes =
+                        profile_res.json().await.map_err(|e| e.to_string())?;
 
                     // 3. Update State
                     auth_store.set_login_state(token_res.clone(), profile);

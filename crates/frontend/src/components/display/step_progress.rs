@@ -5,10 +5,7 @@
 use leptos::prelude::*;
 
 #[component]
-pub fn StepProgress(
-    steps: Vec<String>,
-    current: usize,
-) -> impl IntoView {
+pub fn StepProgress(steps: Vec<String>, current: usize) -> impl IntoView {
     let total = steps.len();
 
     view! {

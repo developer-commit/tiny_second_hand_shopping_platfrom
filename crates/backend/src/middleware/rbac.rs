@@ -8,20 +8,12 @@
 //     .route("/admin/...", ...)
 //     .layer(axum::middleware::from_fn_with_state(state.clone(), require_admin))
 
-use axum::{
-    extract::Request,
-    http::StatusCode,
-    middleware::Next,
-    response::Response,
-};
 use crate::utils::auth::{Claims, UserRole};
+use axum::{extract::Request, http::StatusCode, middleware::Next, response::Response};
 
 /// Admin 역할 필수 미들웨어
 /// authenticate 미들웨어 이후에 실행됩니다 (Claims Extension이 이미 주입된 상태).
-pub async fn require_admin(
-    request: Request,
-    next: Next,
-) -> Result<Response, StatusCode> {
+pub async fn require_admin(request: Request, next: Next) -> Result<Response, StatusCode> {
     let claims = request
         .extensions()
         .get::<Claims>()

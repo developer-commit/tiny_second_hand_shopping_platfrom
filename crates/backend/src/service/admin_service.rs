@@ -5,12 +5,15 @@
 // - 이 서비스의 모든 메서드는 rbac::require_admin 미들웨어로 보호된 라우터에서만 호출됩니다.
 // - 강제 정산은 반드시 감사 로그(audit log)에 reason과 관리자 ID를 기록해야 합니다.
 
-use std::sync::Arc;
-use sea_orm::DatabaseConnection;
-use shared::dto::admin_dto::{ForceSettleReq, ForceSettleTarget, PlatformStatsRes, BanUserReq, HideProductReq, AdminReportListRes, AdminReportSummary};
-use thiserror::Error;
-use async_trait::async_trait;
 use crate::service::traits::{AdminServiceTrait, WalletServiceTrait};
+use async_trait::async_trait;
+use sea_orm::DatabaseConnection;
+use shared::dto::admin_dto::{
+    AdminReportListRes, AdminReportSummary, BanUserReq, ForceSettleReq, ForceSettleTarget,
+    HideProductReq, PlatformStatsRes,
+};
+use std::sync::Arc;
+use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum AdminServiceError {
@@ -37,23 +40,45 @@ impl AdminService {
 impl AdminServiceTrait for AdminService {
     /// 플랫폼 통계 조회 (GET /admin/stats)
     async fn get_platform_stats(&self) -> Result<PlatformStatsRes, AdminServiceError> {
-        use crate::db::entity::{user, product, escrow_trade, report, platform_stats};
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, PaginatorTrait};
-        
-        let users_count = user::Entity::find().count(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
-        let products_count = product::Entity::find().filter(product::Column::Status.eq("on_sale")).count(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
-        let escrows_count = escrow_trade::Entity::find().filter(escrow_trade::Column::Status.eq("deposited")).count(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
-        let disputes_count = escrow_trade::Entity::find().filter(escrow_trade::Column::Status.eq("disputed")).count(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
-        let reports_count = report::Entity::find().filter(report::Column::Status.eq("pending")).count(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
-        
-        let stats = platform_stats::Entity::find().one(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        use crate::db::entity::{escrow_trade, platform_stats, product, report, user};
+        use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
+
+        let users_count = user::Entity::find()
+            .count(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        let products_count = product::Entity::find()
+            .filter(product::Column::Status.eq("on_sale"))
+            .count(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        let escrows_count = escrow_trade::Entity::find()
+            .filter(escrow_trade::Column::Status.eq("deposited"))
+            .count(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        let disputes_count = escrow_trade::Entity::find()
+            .filter(escrow_trade::Column::Status.eq("disputed"))
+            .count(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        let reports_count = report::Entity::find()
+            .filter(report::Column::Status.eq("pending"))
+            .count(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+
+        let stats = platform_stats::Entity::find()
+            .one(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
         let (total_accumulated_fees, last_calculated_at) = match stats {
             Some(s) => {
-                let accumulated = s.total_fee_collected
-                    .try_into()
-                    .map_err(|_| AdminServiceError::Internal("Fee type conversion failed".into()))?;
+                let accumulated = s.total_fee_collected.try_into().map_err(|_| {
+                    AdminServiceError::Internal("Fee type conversion failed".into())
+                })?;
                 (accumulated, s.updated_at.to_rfc3339())
-            },
+            }
             None => (0.0, chrono::Utc::now().to_rfc3339()),
         };
 
@@ -76,12 +101,16 @@ impl AdminServiceTrait for AdminService {
         req: ForceSettleReq,
     ) -> Result<(), AdminServiceError> {
         use crate::db::entity::escrow_trade;
-        use sea_orm::{EntityTrait, ActiveModelTrait, Set, TransactionTrait};
         use crate::utils::security::deobfuscate;
+        use sea_orm::{ActiveModelTrait, EntityTrait, Set, TransactionTrait};
 
         let trade_id = deobfuscate(&req.trade_uid).map_err(|_| AdminServiceError::TradeNotFound)?;
-        
-        let txn = self.db.begin().await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
 
         let trade = escrow_trade::Entity::find_by_id(trade_id)
             .one(&txn)
@@ -101,15 +130,20 @@ impl AdminServiceTrait for AdminService {
         let mut active_trade: escrow_trade::ActiveModel = trade.clone().into();
         active_trade.status = Set(new_status.to_string());
         active_trade.updated_at = Set(chrono::Utc::now().into());
-        active_trade.update(&txn).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        active_trade
+            .update(&txn)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
 
         if req.settle_to == ForceSettleTarget::Seller {
             // Note: In an EVM architecture, forcing a settle to the seller requires dispatching an on-chain transaction.
-            // Currently, this only updates DB escrow state. 
+            // Currently, this only updates DB escrow state.
             tracing::warn!("Admin forced settle to seller, but on-chain payout is not dispatched.");
         }
 
-        txn.commit().await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        txn.commit()
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
 
         tracing::info!(
             admin_id = admin_id,
@@ -123,9 +157,14 @@ impl AdminServiceTrait for AdminService {
     }
 
     /// 사용자 밴 (POST /admin/users/{user_uid}/ban)
-    async fn ban_user(&self, admin_id: i64, user_id: i64, req: BanUserReq) -> Result<(), AdminServiceError> {
+    async fn ban_user(
+        &self,
+        admin_id: i64,
+        user_id: i64,
+        req: BanUserReq,
+    ) -> Result<(), AdminServiceError> {
         use crate::db::entity::user;
-        use sea_orm::{EntityTrait, ActiveModelTrait, Set};
+        use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
         let user_model = user::Entity::find_by_id(user_id)
             .one(&self.db)
@@ -136,7 +175,10 @@ impl AdminServiceTrait for AdminService {
         let mut active_user: user::ActiveModel = user_model.into();
         active_user.status = Set("banned".to_string());
         active_user.updated_at = Set(chrono::Utc::now().into());
-        active_user.update(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        active_user
+            .update(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
 
         tracing::info!(admin_id = admin_id, user_id = user_id, reason = %req.reason, "AUDIT_LOG: User banned");
 
@@ -144,9 +186,14 @@ impl AdminServiceTrait for AdminService {
     }
 
     /// 상품 숨김 (POST /admin/products/{item_uid}/hide)
-    async fn hide_product(&self, admin_id: i64, product_id: i64, req: HideProductReq) -> Result<(), AdminServiceError> {
+    async fn hide_product(
+        &self,
+        admin_id: i64,
+        product_id: i64,
+        req: HideProductReq,
+    ) -> Result<(), AdminServiceError> {
         use crate::db::entity::product;
-        use sea_orm::{EntityTrait, ActiveModelTrait, Set};
+        use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
         let product_model = product::Entity::find_by_id(product_id)
             .one(&self.db)
@@ -157,7 +204,10 @@ impl AdminServiceTrait for AdminService {
         let mut active_product: product::ActiveModel = product_model.into();
         active_product.status = Set("hidden".to_string());
         active_product.updated_at = Set(chrono::Utc::now().into());
-        active_product.update(&self.db).await.map_err(|e| AdminServiceError::Internal(e.to_string()))?;
+        active_product
+            .update(&self.db)
+            .await
+            .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
 
         tracing::info!(admin_id = admin_id, product_id = product_id, reason = %req.reason, "AUDIT_LOG: Product hidden");
 
@@ -167,25 +217,26 @@ impl AdminServiceTrait for AdminService {
     /// 신고 목록 조회 (GET /admin/reports)
     async fn list_reports(&self) -> Result<AdminReportListRes, AdminServiceError> {
         use crate::db::entity::report;
-        use sea_orm::EntityTrait;
         use crate::utils::security::obfuscate;
+        use sea_orm::EntityTrait;
 
         let reports = report::Entity::find()
             .all(&self.db)
             .await
             .map_err(|e| AdminServiceError::Internal(e.to_string()))?;
 
-        let summaries = reports.into_iter().map(|r| AdminReportSummary {
-            report_uid: obfuscate(r.id).unwrap_or_default(),
-            target_item_uid: obfuscate(r.product_id).unwrap_or_default(),
-            reporter_uid: obfuscate(r.reporter_id).unwrap_or_default(),
-            cause: r.reason,
-            status: r.status,
-            submitted_at: r.created_at.to_rfc3339(),
-        }).collect();
+        let summaries = reports
+            .into_iter()
+            .map(|r| AdminReportSummary {
+                report_uid: obfuscate(r.id).unwrap_or_default(),
+                target_item_uid: obfuscate(r.product_id).unwrap_or_default(),
+                reporter_uid: obfuscate(r.reporter_id).unwrap_or_default(),
+                cause: r.reason,
+                status: r.status,
+                submitted_at: r.created_at.to_rfc3339(),
+            })
+            .collect();
 
         Ok(AdminReportListRes { reports: summaries })
     }
 }
-
-

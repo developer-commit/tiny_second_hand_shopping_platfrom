@@ -5,18 +5,14 @@ use leptos::prelude::*;
 
 #[component]
 pub fn FormTextarea(
-    #[prop(into)]
-    label: String,
-    #[prop(into, default = String::new())]
-    placeholder: String,
+    #[prop(into)] label: String,
+    #[prop(into, default = String::new())] placeholder: String,
     signal: RwSignal<String>,
     /// 최대 글자 수 (0이면 제한 없음)
     #[prop(default = 0_usize)]
     max_length: usize,
-    #[prop(optional)]
-    error: Option<Signal<Option<String>>>,
-    #[prop(into, default = String::new())]
-    id: String,
+    #[prop(optional)] error: Option<Signal<Option<String>>>,
+    #[prop(into, default = String::new())] id: String,
 ) -> impl IntoView {
     let input_id = if id.is_empty() {
         label.to_lowercase().replace(' ', "_")
@@ -25,9 +21,7 @@ pub fn FormTextarea(
     };
 
     let char_count = move || signal.get().chars().count();
-    let has_error = move || {
-        error.map(|e| e.get().is_some()).unwrap_or(false)
-    };
+    let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
     let error_msg = move || error.and_then(|e| e.get());
     let show_counter = max_length > 0;
 

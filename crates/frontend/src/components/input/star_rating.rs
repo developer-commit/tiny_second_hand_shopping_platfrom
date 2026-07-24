@@ -5,11 +5,7 @@
 use leptos::prelude::*;
 
 #[component]
-pub fn StarRating(
-    score: RwSignal<i32>,
-    #[prop(default = false)]
-    readonly: bool,
-) -> impl IntoView {
+pub fn StarRating(score: RwSignal<i32>, #[prop(default = false)] readonly: bool) -> impl IntoView {
     view! {
         <div class="star-rating" role=if readonly { "img" } else { "group" } aria-label=move || format!("별점 {}점", score.get())>
             {(1..=5_i32).map(|i| {

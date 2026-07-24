@@ -1,13 +1,13 @@
 // crates/backend/src/service/wallet_domain.rs
 // 목적: 지갑 잔액 계산 및 에스크로 잠금 금액 로직 (단일 진실 공급원 - SSOT)
 
-use sea_orm::{DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait};
-use rust_decimal::Decimal;
-use rust_decimal::prelude::FromPrimitive;
-use std::str::FromStr;
-use std::sync::Arc;
 use crate::db::entity::{escrow_trade, wallet, wallet_transaction};
 use crate::ports::wallet_port::EvmWalletPort;
+use rust_decimal::Decimal;
+use rust_decimal::prelude::FromPrimitive;
+use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter};
+use std::str::FromStr;
+use std::sync::Arc;
 
 pub struct BalanceInfo {
     pub onchain_eth_balance: f64,
@@ -28,7 +28,10 @@ impl WalletDomain {
         let mut display_locked_amount = Decimal::ZERO;
 
         for (currency, status, amount) in escrows {
-            let is_active = matches!(status.as_str(), "pending_deposit" | "deposited" | "received" | "disputed");
+            let is_active = matches!(
+                status.as_str(),
+                "pending_deposit" | "deposited" | "received" | "disputed"
+            );
 
             if is_active {
                 display_locked_amount += amount;
@@ -42,8 +45,10 @@ impl WalletDomain {
             }
         }
 
-        let wallet_locked_amount_eth_f64 = rust_decimal::prelude::ToPrimitive::to_f64(&wallet_locked_amount_eth).unwrap_or(0.0);
-        let display_locked_amount_f64 = rust_decimal::prelude::ToPrimitive::to_f64(&display_locked_amount).unwrap_or(0.0);
+        let wallet_locked_amount_eth_f64 =
+            rust_decimal::prelude::ToPrimitive::to_f64(&wallet_locked_amount_eth).unwrap_or(0.0);
+        let display_locked_amount_f64 =
+            rust_decimal::prelude::ToPrimitive::to_f64(&display_locked_amount).unwrap_or(0.0);
 
         let available_eth_balance = onchain_eth_balance - wallet_locked_amount_eth_f64;
 
@@ -77,13 +82,16 @@ impl WalletDomain {
             .all(db)
             .await
             .map_err(|e| e.to_string())?;
-            
+
         let mapped_escrows: Vec<(String, String, rust_decimal::Decimal)> = escrows
             .into_iter()
             .map(|e| (e.currency, e.status, e.amount))
             .collect();
 
-        Ok(Self::calculate_balance_info(onchain_eth_balance, &mapped_escrows))
+        Ok(Self::calculate_balance_info(
+            onchain_eth_balance,
+            &mapped_escrows,
+        ))
     }
 
     /// 출금이나 에스크로 진행 전 잔액 검증
@@ -102,14 +110,18 @@ impl WalletDomain {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Wallet not found".to_string())?;
 
-        let info = Self::get_balance_info(db, wallet_port, user_id, &wallet.eth_address, wallet.id).await?;
+        let info = Self::get_balance_info(db, wallet_port, user_id, &wallet.eth_address, wallet.id)
+            .await?;
 
         if currency == "ETH" {
             if info.available_eth_balance < (required_amount + fee) {
                 return Err("Insufficient available funds for ETH".to_string());
             }
         } else {
-            return Err(format!("Unsupported currency for sufficient funds verification: {}", currency));
+            return Err(format!(
+                "Unsupported currency for sufficient funds verification: {}",
+                currency
+            ));
         }
 
         Ok(())

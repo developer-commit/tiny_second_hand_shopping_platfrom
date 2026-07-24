@@ -31,12 +31,8 @@ pub fn FormInput(
         id
     };
 
-    let has_error = move || {
-        error.map(|e| e.get().is_some()).unwrap_or(false)
-    };
-    let error_msg = move || {
-        error.and_then(|e| e.get())
-    };
+    let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
+    let error_msg = move || error.and_then(|e| e.get());
 
     view! {
         <div class="form-field">

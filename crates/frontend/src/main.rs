@@ -7,17 +7,13 @@ mod models;
 mod pages;
 mod router;
 
-use leptos::prelude::*;
-use leptos_meta::provide_meta_context;
 use crate::{
     components::feedback::{ToastContainer, ToastStore},
-    models::{
-        auth_model::AuthStore,
-        notification_store::NotificationStore,
-        chat_store::ChatStore,
-    },
+    models::{auth_model::AuthStore, chat_store::ChatStore, notification_store::NotificationStore},
     router::AppRouter,
 };
+use leptos::prelude::*;
+use leptos_meta::provide_meta_context;
 
 #[component]
 fn App() -> impl IntoView {

@@ -1,15 +1,16 @@
 // crates/backend/src/service/notification_service.rs
 // 목적: 알림 DB 저장 및 Redis 발행 복합 서비스.
 
-use std::sync::Arc;
-use async_trait::async_trait;
-use crate::service::traits::NotificationServiceTrait;use sea_orm::DatabaseConnection;
-use shared::dto::noti_dto::NotificationRes;
-use thiserror::Error;
 use crate::ports::{
     notification_port::{CreateNotificationCmd, NotificationPort, NotificationPortError},
     pubsub_port::PubSubPort,
 };
+use crate::service::traits::NotificationServiceTrait;
+use async_trait::async_trait;
+use sea_orm::DatabaseConnection;
+use shared::dto::noti_dto::NotificationRes;
+use std::sync::Arc;
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NotificationServiceError {
@@ -25,7 +26,10 @@ pub struct NotificationService {
 }
 
 impl NotificationService {
-    pub fn new(db: DatabaseConnection, pubsub: Arc<dyn crate::ports::pubsub_port::PubSubPort>) -> Self {
+    pub fn new(
+        db: DatabaseConnection,
+        pubsub: Arc<dyn crate::ports::pubsub_port::PubSubPort>,
+    ) -> Self {
         NotificationService { db, pubsub }
     }
 }
@@ -37,22 +41,22 @@ impl NotificationServiceTrait for NotificationService {
         user_id: i64,
     ) -> Result<Vec<NotificationRes>, NotificationServiceError> {
         use crate::db::entity::notification;
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder};
-        
+        use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+
         let notifs = notification::Entity::find()
             .filter(notification::Column::UserId.eq(user_id))
             .order_by_desc(notification::Column::CreatedAt)
             .all(&self.db)
             .await
             .map_err(|e| NotificationServiceError::Internal(e.to_string()))?;
-            
+
         let mut res = Vec::new();
         for n in notifs {
             if let Ok(dto) = n.try_into() {
                 res.push(dto);
             }
         }
-        
+
         Ok(res)
     }
 
@@ -63,8 +67,8 @@ impl NotificationServiceTrait for NotificationService {
         noti_id: i64,
     ) -> Result<(), NotificationServiceError> {
         use crate::db::entity::notification;
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
-        
+        use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
+
         let noti = notification::Entity::find()
             .filter(notification::Column::Id.eq(noti_id))
             .filter(notification::Column::UserId.eq(user_id))
@@ -72,21 +76,32 @@ impl NotificationServiceTrait for NotificationService {
             .await
             .map_err(|e| NotificationServiceError::Internal(e.to_string()))?
             .ok_or(NotificationServiceError::NotFound)?;
-            
+
         let mut active_noti: notification::ActiveModel = noti.into();
         active_noti.is_read = Set(true);
-        active_noti.update(&self.db).await.map_err(|e| NotificationServiceError::Internal(e.to_string()))?;
+        active_noti
+            .update(&self.db)
+            .await
+            .map_err(|e| NotificationServiceError::Internal(e.to_string()))?;
         Ok(())
     }
 
-    async fn send_notification(&self, user_id: i64, noti_type: &str, reference_id: Option<i64>, message: &str) -> Result<(), NotificationServiceError> {
+    async fn send_notification(
+        &self,
+        user_id: i64,
+        noti_type: &str,
+        reference_id: Option<i64>,
+        message: &str,
+    ) -> Result<(), NotificationServiceError> {
         let cmd = CreateNotificationCmd {
             user_id,
             noti_type: noti_type.to_string(),
             reference_id,
             message: message.to_string(),
         };
-        self.send(cmd).await.map_err(|e| NotificationServiceError::Internal(e.to_string()))
+        self.send(cmd)
+            .await
+            .map_err(|e| NotificationServiceError::Internal(e.to_string()))
     }
 }
 
@@ -96,7 +111,7 @@ impl NotificationPort for NotificationService {
     async fn send(&self, cmd: CreateNotificationCmd) -> Result<(), NotificationPortError> {
         use crate::db::entity::notification;
         use sea_orm::{ActiveModelTrait, Set};
-        
+
         let active_noti = notification::ActiveModel {
             user_id: Set(cmd.user_id),
             r#type: Set(cmd.noti_type.clone()),
@@ -106,9 +121,12 @@ impl NotificationPort for NotificationService {
             created_at: Set(chrono::Utc::now().into()),
             ..Default::default()
         };
-        
-        let inserted = active_noti.insert(&self.db).await.map_err(|e| NotificationPortError::SaveFailed(e.to_string()))?;
-        
+
+        let inserted = active_noti
+            .insert(&self.db)
+            .await
+            .map_err(|e| NotificationPortError::SaveFailed(e.to_string()))?;
+
         let dto_result: Result<NotificationRes, _> = inserted.try_into();
         if let Ok(dto) = dto_result {
             if let Ok(payload) = serde_json::to_string(&dto) {
@@ -118,7 +136,7 @@ impl NotificationPort for NotificationService {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -127,10 +145,10 @@ impl NotificationPort for NotificationService {
 mod tests {
     use super::*;
     use crate::db::entity::notification;
-    use sea_orm::{DatabaseBackend, MockDatabase};
     use chrono::Utc;
     use mockall::mock;
-    
+    use sea_orm::{DatabaseBackend, MockDatabase};
+
     mock! {
         pub PubSub {}
         #[async_trait::async_trait]
@@ -158,7 +176,7 @@ mod tests {
 
         let pubsub = Arc::new(MockPubSub::new());
         let service = NotificationService::new(db, pubsub);
-        
+
         let res = service.get_notifications(100).await;
         assert!(res.is_ok());
         let notifs = res.unwrap();
@@ -191,7 +209,7 @@ mod tests {
 
         let pubsub = Arc::new(MockPubSub::new());
         let service = NotificationService::new(db, pubsub);
-        
+
         let res = service.mark_as_read(100, 1).await;
         assert!(res.is_ok());
     }
@@ -214,14 +232,18 @@ mod tests {
             .into_connection();
 
         let mut mock_pubsub = MockPubSub::new();
-        mock_pubsub.expect_publish()
-            .with(mockall::predicate::eq("user:100:notifications"), mockall::predicate::always())
+        mock_pubsub
+            .expect_publish()
+            .with(
+                mockall::predicate::eq("user:100:notifications"),
+                mockall::predicate::always(),
+            )
             .times(1)
             .returning(|_, _| Ok(()));
 
         let pubsub = Arc::new(mock_pubsub);
         let service = NotificationService::new(db, pubsub);
-        
+
         let cmd = CreateNotificationCmd {
             user_id: 100,
             noti_type: "system".to_string(),

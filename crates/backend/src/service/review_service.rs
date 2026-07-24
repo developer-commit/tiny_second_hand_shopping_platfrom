@@ -1,13 +1,13 @@
 // crates/backend/src/service/review_service.rs
 // 목적: 거래 완료 후 리뷰 및 평점 작성 비즈니스 로직.
 
-use std::sync::Arc;
+use crate::service::traits::{ReviewServiceTrait, UserServiceTrait};
+use crate::service::user_service::UserService;
+use async_trait::async_trait;
 use sea_orm::DatabaseConnection;
 use shared::dto::review_dto::{ReviewRes, SubmitReviewReq};
-use crate::service::user_service::UserService;
+use std::sync::Arc;
 use thiserror::Error;
-use async_trait::async_trait;
-use crate::service::traits::{ReviewServiceTrait, UserServiceTrait};
 
 #[derive(Debug, Error)]
 pub enum ReviewServiceError {
@@ -46,10 +46,16 @@ impl ReviewServiceTrait for ReviewService {
         req: SubmitReviewReq,
     ) -> Result<ReviewRes, ReviewServiceError> {
         use crate::db::entity::{escrow_trade, review};
-        use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set, TransactionTrait};
         use crate::utils::security::obfuscate;
+        use sea_orm::{
+            ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set, TransactionTrait,
+        };
 
-        let txn = self.db.begin().await.map_err(|e| ReviewServiceError::Internal(e.to_string()))?;
+        let txn = self
+            .db
+            .begin()
+            .await
+            .map_err(|e| ReviewServiceError::Internal(e.to_string()))?;
 
         let trade = escrow_trade::Entity::find_by_id(trade_id)
             .one(&txn)
@@ -60,7 +66,7 @@ impl ReviewServiceTrait for ReviewService {
         if trade.status != "settled" {
             return Err(ReviewServiceError::TradeNotCompleted);
         }
-        
+
         let review_target = if trade.buyer_id == reviewer_id {
             trade.seller_id
         } else if trade.seller_id == reviewer_id {
@@ -68,18 +74,18 @@ impl ReviewServiceTrait for ReviewService {
         } else {
             return Err(ReviewServiceError::Forbidden);
         };
-        
+
         let existing_review = review::Entity::find()
             .filter(review::Column::TradeId.eq(trade_id))
             .filter(review::Column::ReviewerId.eq(reviewer_id))
             .one(&txn)
             .await
             .map_err(|e| ReviewServiceError::Internal(e.to_string()))?;
-            
+
         if existing_review.is_some() {
             return Err(ReviewServiceError::AlreadyReviewed);
         }
-        
+
         let r = review::ActiveModel {
             trade_id: Set(trade.id),
             reviewer_id: Set(reviewer_id),
@@ -89,16 +95,25 @@ impl ReviewServiceTrait for ReviewService {
             created_at: Set(chrono::Utc::now().into()),
             ..Default::default()
         };
-        
-        let inserted = r.insert(&txn).await.map_err(|e| ReviewServiceError::Internal(e.to_string()))?;
-        
-        txn.commit().await.map_err(|e| ReviewServiceError::Internal(e.to_string()))?;
-        
+
+        let inserted = r
+            .insert(&txn)
+            .await
+            .map_err(|e| ReviewServiceError::Internal(e.to_string()))?;
+
+        txn.commit()
+            .await
+            .map_err(|e| ReviewServiceError::Internal(e.to_string()))?;
+
         // Recalculate trust score asynchronously
-        if let Err(e) = self.user_service.recalculate_trust_score(review_target).await {
+        if let Err(e) = self
+            .user_service
+            .recalculate_trust_score(review_target)
+            .await
+        {
             eprintln!("Failed to recalculate trust score: {}", e);
         }
-        
+
         Ok(ReviewRes {
             review_uid: obfuscate(inserted.id).unwrap_or_default(),
             trade_uid: obfuscate(inserted.trade_id).unwrap_or_default(),
@@ -115,9 +130,9 @@ impl ReviewServiceTrait for ReviewService {
 mod tests {
     use super::*;
     use crate::db::entity::{escrow_trade, review, user};
-    use sea_orm::{DatabaseBackend, MockDatabase};
     use chrono::Utc;
     use rust_decimal::Decimal;
+    use sea_orm::{DatabaseBackend, MockDatabase};
 
     #[tokio::test]
     async fn test_submit_review_success() {
@@ -173,17 +188,20 @@ mod tests {
             .append_query_results([vec![review_model.clone()]])
             // UserService uses the same DB connection, append results for recalculate_trust_score
             .append_query_results([vec![review_model.clone()]]) // reviews for reviewee
-            .append_query_results([vec![user_model.clone()]])   // find user
-            .append_query_results([vec![user_model.clone()]])   // update user return
+            .append_query_results([vec![user_model.clone()]]) // find user
+            .append_query_results([vec![user_model.clone()]]) // update user return
             .into_connection();
 
         use crate::state::DbClone;
         let user_service = Arc::new(UserService::new(db.clone_conn()));
         let review_service = ReviewService::new(db, user_service);
 
-        let req = SubmitReviewReq { score: 5, feedback: Some("Great".to_string()) };
+        let req = SubmitReviewReq {
+            score: 5,
+            feedback: Some("Great".to_string()),
+        };
         let res = review_service.submit_review(100, 1, req).await;
-        
+
         assert!(res.is_ok());
         let res = res.unwrap();
         assert_eq!(res.score, 5);
@@ -218,9 +236,12 @@ mod tests {
         let user_service = Arc::new(UserService::new(db.clone_conn()));
         let review_service = ReviewService::new(db, user_service);
 
-        let req = SubmitReviewReq { score: 5, feedback: Some("Great".to_string()) };
+        let req = SubmitReviewReq {
+            score: 5,
+            feedback: Some("Great".to_string()),
+        };
         let res = review_service.submit_review(100, 1, req).await;
-        
+
         assert!(matches!(res, Err(ReviewServiceError::TradeNotCompleted)));
     }
 }

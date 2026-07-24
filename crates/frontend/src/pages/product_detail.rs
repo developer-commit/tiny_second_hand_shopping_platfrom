@@ -1,27 +1,25 @@
 // crates/frontend/src/pages/product_detail.rs
 // URL: /products/:item_uid
 
-use leptos::prelude::*;
-use leptos_meta::Title;
-use leptos_router::hooks::use_params_map;
-use shared::dto::product_dto::ItemState;
 use crate::components::{
-    layout::PageContainer,
-    display::{StatusBadge, ImageCarousel, UserTrustIndicator},
+    display::{ImageCarousel, StatusBadge, UserTrustIndicator},
     feedback::{AppButton, ButtonVariant},
     input::form_input::FormInput,
+    layout::PageContainer,
 };
-use crate::models::{
-    product_model::fetch_product_detail,
-    auth_model::AuthStore,
-};
+use crate::models::{auth_model::AuthStore, product_model::fetch_product_detail};
+use gloo_net::http::Request;
+use leptos::prelude::*;
+use leptos_meta::Title;
+use leptos_router::components::A;
+use leptos_router::hooks::use_navigate;
+use leptos_router::hooks::use_params_map;
+use shared::dto::product_dto::ItemState;
 use shared::dto::{
-    chat_dto::{CreateChatRoomReq, ChatRoomRes},
+    chat_dto::{ChatRoomRes, CreateChatRoomReq},
     escrow_dto::{InitiateEscrowReq, SafeTradeStatusRes},
     report_dto::SubmitReportReq,
 };
-use gloo_net::http::Request;
-use leptos_router::hooks::use_navigate;
 
 async fn create_chat_room(token: &str, req: &CreateChatRoomReq) -> Result<ChatRoomRes, String> {
     let url = format!("{}/chat/rooms", "/v1");
@@ -43,7 +41,10 @@ async fn create_chat_room(token: &str, req: &CreateChatRoomReq) -> Result<ChatRo
     res.json().await.map_err(|e| e.to_string())
 }
 
-async fn initiate_escrow(token: &str, req: &InitiateEscrowReq) -> Result<SafeTradeStatusRes, String> {
+async fn initiate_escrow(
+    token: &str,
+    req: &InitiateEscrowReq,
+) -> Result<SafeTradeStatusRes, String> {
     let url = format!("{}/escrow", "/v1");
     let res = Request::post(&url)
         .header("Authorization", &format!("Bearer {}", token))
@@ -85,13 +86,16 @@ pub fn ProductDetailPage() -> impl IntoView {
     let item_uid = move || params.with(|p| p.get("item_uid").unwrap_or_default());
     let auth_store = expect_context::<AuthStore>();
     let token = Signal::derive(move || auth_store.bearer_header().unwrap_or_default());
-    let current_user_uid = Signal::derive(move || auth_store.current_user.get().map(|u| u.user_uid));
+    let current_user_uid =
+        Signal::derive(move || auth_store.current_user.get().map(|u| u.user_uid));
     let navigate = use_navigate();
 
     let product = LocalResource::new(move || {
         let uid = item_uid();
         async move {
-            if uid.is_empty() { return Err("유효하지 않은 상품입니다.".to_string()); }
+            if uid.is_empty() {
+                return Err("유효하지 않은 상품입니다.".to_string());
+            }
             fetch_product_detail(uid).await
         }
     });
@@ -102,7 +106,9 @@ pub fn ProductDetailPage() -> impl IntoView {
         let req_clone = req.clone();
         async move {
             chat_error.set(None);
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             create_chat_room(&t, &req_clone).await
         }
     });
@@ -113,7 +119,9 @@ pub fn ProductDetailPage() -> impl IntoView {
         let req_clone = req.clone();
         async move {
             escrow_error.set(None);
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             initiate_escrow(&t, &req_clone).await
         }
     });
@@ -124,7 +132,9 @@ pub fn ProductDetailPage() -> impl IntoView {
         let uid = item_uid();
         let req_clone = req.clone();
         async move {
-            if t.is_empty() { return Err("로그인이 필요합니다.".to_string()); }
+            if t.is_empty() {
+                return Err("로그인이 필요합니다.".to_string());
+            }
             submit_report(&t, &uid, &req_clone).await
         }
     });
@@ -133,7 +143,10 @@ pub fn ProductDetailPage() -> impl IntoView {
     Effect::new(move |_| {
         if let Some(res) = chat_action.value().get() {
             match res {
-                Ok(room) => nav1(&format!("/chat?room_uid={}", room.room_uid), Default::default()),
+                Ok(room) => nav1(
+                    &format!("/chat?room_uid={}", room.room_uid),
+                    Default::default(),
+                ),
                 Err(e) => chat_error.set(Some(e)),
             }
         }
@@ -165,14 +178,17 @@ pub fn ProductDetailPage() -> impl IntoView {
                             let item = item.clone();
                             let is_available = matches!(item.current_state, ItemState::OnSale);
                             let is_owner = current_user_uid.get() == Some(item.owner_uid.clone());
-                            
+                            let owner_uid_for_link = item.owner_uid.clone();
+                            let owner_uid_for_text = item.owner_uid.clone();
+                            let owner_uid_for_chat = item.owner_uid.clone();
+
                             view! {
                                 <div style="display: flex; flex-direction: column; gap: 2rem;">
                                     // Images
                                     <div style="aspect-ratio: 16/9; background: var(--surface-color); border-radius: 8px; overflow: hidden;">
                                         <ImageCarousel urls=item.image_urls.clone() />
                                     </div>
-                                    
+
                                     // Header Info
                                     <div style="display: flex; flex-direction: column; gap: 1rem;">
                                         <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -181,7 +197,7 @@ pub fn ProductDetailPage() -> impl IntoView {
                                                 {format!("조회 {}", item.hit_count)}
                                             </span>
                                         </div>
-                                        
+
                                         <h1 style="font-size: 1.5rem; font-weight: bold;">{item.heading.clone()}</h1>
                                         <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary-color);">
                                             {
@@ -190,18 +206,20 @@ pub fn ProductDetailPage() -> impl IntoView {
                                             }
                                         </div>
                                     </div>
-                                    
+
                                     // Seller Info
-                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
-                                        <span style="font-weight: 500;">{item.owner_uid.clone()}</span>
-                                        <UserTrustIndicator reliability_index=item.seller_trust_score.unwrap_or(0.0) />
-                                    </div>
-                                    
+                                    <A href=format!("/users/{}", owner_uid_for_link)>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);" class="group hover:bg-slate-50 transition-colors">
+                                            <span style="font-weight: 500;" class="group-hover:text-brand-600 transition-colors">{owner_uid_for_text}</span>
+                                            <UserTrustIndicator reliability_index=item.seller_trust_score.unwrap_or(0.0) />
+                                        </div>
+                                    </A>
+
                                     // Body
                                     <p style="white-space: pre-wrap; line-height: 1.6;">
                                         {item.detail_body.clone()}
                                     </p>
-                                    
+
                                     // Action Buttons
                                     <div style="display: flex; gap: 1rem; margin-top: 1rem;">
                                         <div style="flex: 1;">
@@ -211,13 +229,13 @@ pub fn ProductDetailPage() -> impl IntoView {
                                                 disabled=Signal::derive(move || !is_available || is_owner)
                                                 on_click={
                                                     let uid = item.item_uid.clone();
-                                                    let owner_uid = item.owner_uid.clone();
-                                                    move || { 
+                                                    let owner_uid = owner_uid_for_chat.clone();
+                                                    move || {
                                                         if is_owner {
                                                             chat_error.set(Some("자신의 상품에는 채팅을 시작할 수 없습니다.".to_string()));
                                                             return;
                                                         }
-                                                        chat_action.dispatch(CreateChatRoomReq { item_uid: uid.clone(), partner_uid: owner_uid.clone() }); 
+                                                        chat_action.dispatch(CreateChatRoomReq { item_uid: uid.clone(), partner_uid: owner_uid.clone() });
                                                     }
                                                 }
                                             >
@@ -247,7 +265,7 @@ pub fn ProductDetailPage() -> impl IntoView {
                                             {e}
                                         </div>
                                     })}
-                                    
+
                                     // Report Form
                                     <details style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
                                         <summary style="cursor: pointer; color: var(--text-secondary);">"이 게시글 신고하기"</summary>

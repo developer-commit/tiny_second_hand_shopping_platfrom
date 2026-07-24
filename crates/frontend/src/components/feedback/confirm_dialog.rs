@@ -1,16 +1,15 @@
 // crates/frontend/src/components/feedback/confirm_dialog.rs
 // 목적: 확인/취소 다이얼로그 — Modal 래핑, 단순 yes/no 인터랙션
 
-use leptos::prelude::*;
-use super::Modal;
 use super::AppButton;
 use super::ButtonVariant;
+use super::Modal;
+use leptos::prelude::*;
 
 #[component]
 pub fn ConfirmDialog(
     is_open: RwSignal<bool>,
-    #[prop(into)]
-    message: String,
+    #[prop(into)] message: String,
     on_confirm: Callback<()>,
     on_cancel: Callback<()>,
     /// 확인 버튼 레이블 (기본: "확인")

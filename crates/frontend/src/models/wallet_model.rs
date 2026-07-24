@@ -1,9 +1,9 @@
 // crates/frontend/src/models/wallet_model.rs
 // 목적: 지갑 상태 반응형 래퍼.
 
-use leptos::prelude::*;
-use shared::dto::transaction_dto::{TxHistoryItemRes, WalletStateRes, EthWithdrawReq};
 use gloo_net::http::Request;
+use leptos::prelude::*;
+use shared::dto::transaction_dto::{EthWithdrawReq, TxHistoryItemRes, WalletStateRes};
 
 const API_BASE_URL: &str = "/v1";
 
@@ -55,7 +55,9 @@ pub async fn fetch_wallet_state(token: &str) -> Result<WalletStateRes, String> {
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 
@@ -73,13 +75,14 @@ pub async fn fetch_tx_history(token: &str) -> Result<Vec<TxHistoryItemRes>, Stri
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 
     res.json().await.map_err(|e| e.to_string())
 }
-
 
 /// POST /wallet/eth/withdraw - ETH 출금 요청
 pub async fn eth_withdraw(token: &str, req: EthWithdrawReq) -> Result<(), String> {
@@ -94,7 +97,9 @@ pub async fn eth_withdraw(token: &str, req: EthWithdrawReq) -> Result<(), String
 
     if !res.ok() {
         let err_res: Result<shared::dto::error_dto::ApiErrorRes, _> = res.json().await;
-        let err_msg = err_res.map(|e| e.message).unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
+        let err_msg = err_res
+            .map(|e| e.message)
+            .unwrap_or_else(|_| "오류가 발생했습니다.".to_string());
         return Err(err_msg);
     }
 

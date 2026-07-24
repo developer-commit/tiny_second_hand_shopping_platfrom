@@ -9,11 +9,11 @@ use shared::dto::escrow_dto::TradeStep;
 pub fn TradeStepBadge(step: TradeStep) -> impl IntoView {
     let (icon, label, class) = match step {
         TradeStep::PendingDeposit => ("⏳", "입금 대기", "badge badge-warning"),
-        TradeStep::Deposited => ("🛡️", "안전결제",   "badge badge-primary"),
-        TradeStep::Received  => ("📦", "수령확인",   "badge badge-success"),
-        TradeStep::Disputed  => ("⚠️", "분쟁중",     "badge badge-danger"),
-        TradeStep::Settled   => ("✅", "정산완료",   "badge badge-secondary"),
-        TradeStep::Refunded  => ("↩️", "환불완료",   "badge badge-muted"),
+        TradeStep::Deposited => ("🛡️", "안전결제", "badge badge-primary"),
+        TradeStep::Received => ("📦", "수령확인", "badge badge-success"),
+        TradeStep::Disputed => ("⚠️", "분쟁중", "badge badge-danger"),
+        TradeStep::Settled => ("✅", "정산완료", "badge badge-secondary"),
+        TradeStep::Refunded => ("↩️", "환불완료", "badge badge-muted"),
     };
 
     view! {

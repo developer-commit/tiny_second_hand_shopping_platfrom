@@ -4,7 +4,21 @@ use async_trait::async_trait;
 use mockall::automock;
 
 use shared::dto::{
-    admin_dto::{ForceSettleReq, PlatformStatsRes, BanUserReq, HideProductReq, AdminReportListRes}, chat_dto::{ChatMessagePayload, ChatRoomRes, CreateChatRoomReq, SendMessageReq}, escrow_dto::{DisputeEscrowReq, InitiateEscrowReq, SafeTradeStatusRes}, noti_dto::NotificationRes, product_dto::{CreateItemReq, ItemDetailRes, ItemSummaryRes, ProductSearchQuery, UpdateItemReq, UpdateItemStateReq}, report_dto::{ReportAckRes, SubmitReportReq}, review_dto::{ReviewRes, SubmitReviewReq}, transaction_dto::{TxHistoryItemRes, WalletStateRes, EthWithdrawReq}, user_dto::{AuthTokenRes, Enable2FaReq, LoginReq, LoginResponse, SendCodeReq, SignUpReq, TwoFaSetupRes, UpdateProfileReq, UserProfileRes},
+    admin_dto::{AdminReportListRes, BanUserReq, ForceSettleReq, HideProductReq, PlatformStatsRes},
+    chat_dto::{ChatMessagePayload, ChatRoomRes, CreateChatRoomReq, SendMessageReq},
+    escrow_dto::{DisputeEscrowReq, InitiateEscrowReq, SafeTradeStatusRes},
+    noti_dto::NotificationRes,
+    product_dto::{
+        CreateItemReq, ItemDetailRes, ItemSummaryRes, ProductSearchQuery, UpdateItemReq,
+        UpdateItemStateReq,
+    },
+    report_dto::{ReportAckRes, SubmitReportReq},
+    review_dto::{ReviewRes, SubmitReviewReq},
+    transaction_dto::{EthWithdrawReq, TxHistoryItemRes, WalletStateRes},
+    user_dto::{
+        AuthTokenRes, Enable2FaReq, LoginReq, LoginResponse, PublicUserProfileRes, SendCodeReq,
+        SignUpReq, TwoFaSetupRes, UpdateProfileReq, UserProfileRes,
+    },
 };
 
 //errors
@@ -36,14 +50,10 @@ pub enum EscrowServiceError {
 }
 
 use super::{
-    admin_service::AdminServiceError,
-    auth_service::AuthServiceError,
-    chat_service::ChatServiceError,
-    notification_service::NotificationServiceError,
-    product_service::ProductServiceError,
-    report_service::ReportServiceError,
-    review_service::ReviewServiceError,
-    user_service::UserServiceError,
+    admin_service::AdminServiceError, auth_service::AuthServiceError,
+    chat_service::ChatServiceError, notification_service::NotificationServiceError,
+    product_service::ProductServiceError, report_service::ReportServiceError,
+    review_service::ReviewServiceError, user_service::UserServiceError,
     wallet_service::WalletServiceError,
 };
 
@@ -51,9 +61,23 @@ use super::{
 #[async_trait]
 pub trait AdminServiceTrait: Send + Sync {
     async fn get_platform_stats(&self) -> Result<PlatformStatsRes, AdminServiceError>;
-    async fn force_settle(&self, admin_id: i64, req: ForceSettleReq) -> Result<(), AdminServiceError>;
-    async fn ban_user(&self, admin_id: i64, user_id: i64, req: BanUserReq) -> Result<(), AdminServiceError>;
-    async fn hide_product(&self, admin_id: i64, product_id: i64, req: HideProductReq) -> Result<(), AdminServiceError>;
+    async fn force_settle(
+        &self,
+        admin_id: i64,
+        req: ForceSettleReq,
+    ) -> Result<(), AdminServiceError>;
+    async fn ban_user(
+        &self,
+        admin_id: i64,
+        user_id: i64,
+        req: BanUserReq,
+    ) -> Result<(), AdminServiceError>;
+    async fn hide_product(
+        &self,
+        admin_id: i64,
+        product_id: i64,
+        req: HideProductReq,
+    ) -> Result<(), AdminServiceError>;
     async fn list_reports(&self) -> Result<AdminReportListRes, AdminServiceError>;
 }
 
@@ -71,59 +95,137 @@ pub trait AuthServiceTrait: Send + Sync {
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait ChatServiceTrait: Send + Sync {
-    async fn get_or_create_room(&self, user_id: i64, req: CreateChatRoomReq) -> Result<ChatRoomRes, ChatServiceError>;
-    async fn send_message(&self, sender_id: i64, req: SendMessageReq) -> Result<ChatMessagePayload, ChatServiceError>;
-    async fn get_history(&self, user_id: i64, room_id: i64, before_msg_id: Option<i64>) -> Result<Vec<ChatMessagePayload>, ChatServiceError>;
+    async fn get_or_create_room(
+        &self,
+        user_id: i64,
+        req: CreateChatRoomReq,
+    ) -> Result<ChatRoomRes, ChatServiceError>;
+    async fn send_message(
+        &self,
+        sender_id: i64,
+        req: SendMessageReq,
+    ) -> Result<ChatMessagePayload, ChatServiceError>;
+    async fn get_history(
+        &self,
+        user_id: i64,
+        room_id: i64,
+        before_msg_id: Option<i64>,
+    ) -> Result<Vec<ChatMessagePayload>, ChatServiceError>;
     async fn get_user_rooms(&self, user_id: i64) -> Result<Vec<ChatRoomRes>, ChatServiceError>;
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait EscrowServiceTrait: Send + Sync {
-    async fn initiate(&self, buyer_id: i64, req: InitiateEscrowReq) -> Result<SafeTradeStatusRes, EscrowServiceError>;
+    async fn initiate(
+        &self,
+        buyer_id: i64,
+        req: InitiateEscrowReq,
+    ) -> Result<SafeTradeStatusRes, EscrowServiceError>;
     async fn deposit(&self, buyer_id: i64, trade_id: i64) -> Result<(), EscrowServiceError>;
     async fn confirm(&self, buyer_id: i64, trade_id: i64) -> Result<(), EscrowServiceError>;
-    async fn dispute(&self, buyer_id: i64, trade_id: i64, req: DisputeEscrowReq) -> Result<(), EscrowServiceError>;
-    async fn get_trade(&self, user_id: i64, trade_id: i64) -> Result<SafeTradeStatusRes, EscrowServiceError>;
+    async fn dispute(
+        &self,
+        buyer_id: i64,
+        trade_id: i64,
+        req: DisputeEscrowReq,
+    ) -> Result<(), EscrowServiceError>;
+    async fn get_trade(
+        &self,
+        user_id: i64,
+        trade_id: i64,
+    ) -> Result<SafeTradeStatusRes, EscrowServiceError>;
     async fn auto_confirm_expired_trades(&self) -> Result<(), EscrowServiceError>;
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait NotificationServiceTrait: Send + Sync {
-    async fn get_notifications(&self, user_id: i64) -> Result<Vec<NotificationRes>, NotificationServiceError>;
-    async fn mark_as_read(&self, user_id: i64, noti_id: i64) -> Result<(), NotificationServiceError>;
-    async fn send_notification(&self, user_id: i64, noti_type: &str, reference_id: Option<i64>, message: &str) -> Result<(), NotificationServiceError>;
+    async fn get_notifications(
+        &self,
+        user_id: i64,
+    ) -> Result<Vec<NotificationRes>, NotificationServiceError>;
+    async fn mark_as_read(
+        &self,
+        user_id: i64,
+        noti_id: i64,
+    ) -> Result<(), NotificationServiceError>;
+    async fn send_notification(
+        &self,
+        user_id: i64,
+        noti_type: &str,
+        reference_id: Option<i64>,
+        message: &str,
+    ) -> Result<(), NotificationServiceError>;
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait ProductServiceTrait: Send + Sync {
-    async fn list_products(&self, query: ProductSearchQuery) -> Result<Vec<ItemSummaryRes>, ProductServiceError>;
+    async fn list_products(
+        &self,
+        query: ProductSearchQuery,
+    ) -> Result<Vec<ItemSummaryRes>, ProductServiceError>;
     async fn get_product(&self, product_id: i64) -> Result<ItemDetailRes, ProductServiceError>;
-    async fn create_product(&self, seller_id: i64, req: CreateItemReq) -> Result<ItemDetailRes, ProductServiceError>;
-    async fn update_product(&self, seller_id: i64, product_id: i64, req: UpdateItemReq) -> Result<ItemDetailRes, ProductServiceError>;
-    async fn update_product_state(&self, seller_id: i64, product_id: i64, req: UpdateItemStateReq) -> Result<(), ProductServiceError>;
-    async fn delete_product(&self, seller_id: i64, product_id: i64) -> Result<(), ProductServiceError>;
+    async fn create_product(
+        &self,
+        seller_id: i64,
+        req: CreateItemReq,
+    ) -> Result<ItemDetailRes, ProductServiceError>;
+    async fn update_product(
+        &self,
+        seller_id: i64,
+        product_id: i64,
+        req: UpdateItemReq,
+    ) -> Result<ItemDetailRes, ProductServiceError>;
+    async fn update_product_state(
+        &self,
+        seller_id: i64,
+        product_id: i64,
+        req: UpdateItemStateReq,
+    ) -> Result<(), ProductServiceError>;
+    async fn delete_product(
+        &self,
+        seller_id: i64,
+        product_id: i64,
+    ) -> Result<(), ProductServiceError>;
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait ReportServiceTrait: Send + Sync {
-    async fn submit_report(&self, reporter_id: i64, product_id: i64, req: SubmitReportReq) -> Result<ReportAckRes, ReportServiceError>;
+    async fn submit_report(
+        &self,
+        reporter_id: i64,
+        product_id: i64,
+        req: SubmitReportReq,
+    ) -> Result<ReportAckRes, ReportServiceError>;
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait ReviewServiceTrait: Send + Sync {
-    async fn submit_review(&self, reviewer_id: i64, trade_id: i64, req: SubmitReviewReq) -> Result<ReviewRes, ReviewServiceError>;
+    async fn submit_review(
+        &self,
+        reviewer_id: i64,
+        trade_id: i64,
+        req: SubmitReviewReq,
+    ) -> Result<ReviewRes, ReviewServiceError>;
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait UserServiceTrait: Send + Sync {
+    async fn get_public_profile(
+        &self,
+        user_id: i64,
+    ) -> Result<PublicUserProfileRes, UserServiceError>;
     async fn get_profile(&self, user_id: i64) -> Result<UserProfileRes, UserServiceError>;
-    async fn update_profile(&self, user_id: i64, req: UpdateProfileReq) -> Result<UserProfileRes, UserServiceError>;
+    async fn update_profile(
+        &self,
+        user_id: i64,
+        req: UpdateProfileReq,
+    ) -> Result<UserProfileRes, UserServiceError>;
     async fn recalculate_trust_score(&self, user_id: i64) -> Result<(), UserServiceError>;
 }
 
@@ -132,6 +234,13 @@ pub trait UserServiceTrait: Send + Sync {
 pub trait WalletServiceTrait: Send + Sync {
     async fn get_wallet_state(&self, user_id: i64) -> Result<WalletStateRes, WalletServiceError>;
 
-    async fn get_tx_history(&self, user_id: i64) -> Result<Vec<TxHistoryItemRes>, WalletServiceError>;
-    async fn eth_withdraw(&self, user_id: i64, req: EthWithdrawReq) -> Result<TxHistoryItemRes, WalletServiceError>;
+    async fn get_tx_history(
+        &self,
+        user_id: i64,
+    ) -> Result<Vec<TxHistoryItemRes>, WalletServiceError>;
+    async fn eth_withdraw(
+        &self,
+        user_id: i64,
+        req: EthWithdrawReq,
+    ) -> Result<TxHistoryItemRes, WalletServiceError>;
 }

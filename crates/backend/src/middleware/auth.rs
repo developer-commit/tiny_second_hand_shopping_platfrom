@@ -9,14 +9,14 @@
 // 3. Claims.status 확인 — dormant/suspended 계정 차단
 // 4. Extension에 Claims 주입 → 핸들러로 전달
 
+use crate::state::AppState;
+use crate::utils::auth::{Claims, verify_token};
 use axum::{
     extract::Request,
-    http::{header, StatusCode},
+    http::{StatusCode, header},
     middleware::Next,
     response::Response,
 };
-use crate::utils::auth::{verify_token, Claims};
-use crate::state::AppState;
 
 /// JWT 인증 미들웨어 함수
 /// `router.layer(axum::middleware::from_fn_with_state(state, authenticate))`로 적용

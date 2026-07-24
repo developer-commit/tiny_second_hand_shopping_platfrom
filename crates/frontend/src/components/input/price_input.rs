@@ -6,15 +6,12 @@ use leptos::prelude::*;
 #[component]
 pub fn PriceInput(
     signal: RwSignal<f64>,
-    #[prop(optional)]
-    error: Option<Signal<Option<String>>>,
+    #[prop(optional)] error: Option<Signal<Option<String>>>,
 ) -> impl IntoView {
     // 내부적으로 String 버퍼를 유지하여 사용자 입력 경험을 자연스럽게 합니다.
     let display_val = RwSignal::new(format!("{}", signal.get_untracked()));
 
-    let has_error = move || {
-        error.map(|e| e.get().is_some()).unwrap_or(false)
-    };
+    let has_error = move || error.map(|e| e.get().is_some()).unwrap_or(false);
     let error_msg = move || error.and_then(|e| e.get());
 
     let on_input = move |ev: leptos::ev::Event| {

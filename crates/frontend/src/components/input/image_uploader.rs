@@ -2,9 +2,9 @@
 // 목적: 드래그 앤 드롭 / 파일 선택 이미지 업로드 UI
 // Phase 1: UI 구조 구현 (on_uploaded 콜백은 Phase 2 API 연동 시 활성화)
 
-use leptos::prelude::*;
 use crate::models::auth_model::AuthStore;
 use gloo_net::http::Request;
+use leptos::prelude::*;
 
 #[derive(serde::Deserialize)]
 struct UploadResponse {
@@ -23,7 +23,7 @@ pub fn ImageUploader(
 ) -> impl IntoView {
     let can_add = move || preview_urls.get().len() < max_count;
     let is_uploading = RwSignal::new(false);
-    
+
     let auth_store = expect_context::<AuthStore>();
     let token = Signal::derive(move || auth_store.bearer_header().unwrap_or_default());
 
@@ -39,9 +39,9 @@ pub fn ImageUploader(
                     if let Some(file) = files.item(i) {
                         let t = token.get();
                         let on_uploaded_cb = on_uploaded.clone();
-                        
+
                         is_uploading.set(true);
-                        
+
                         leptos::task::spawn_local(async move {
                             if t.is_empty() {
                                 leptos::logging::error!("No auth token available for upload");
@@ -69,12 +69,16 @@ pub fn ImageUploader(
 
                             match res {
                                 Ok(response) if response.ok() => {
-                                    if let Ok(upload_res) = response.json::<UploadResponse>().await {
-                                        preview_urls.update(|v| v.push(upload_res.image_url.clone()));
+                                    if let Ok(upload_res) = response.json::<UploadResponse>().await
+                                    {
+                                        preview_urls
+                                            .update(|v| v.push(upload_res.image_url.clone()));
                                         on_uploaded_cb.run(upload_res.image_url);
                                     }
                                 }
-                                Ok(response) => leptos::logging::error!("Upload failed: {}", response.status()),
+                                Ok(response) => {
+                                    leptos::logging::error!("Upload failed: {}", response.status())
+                                }
                                 Err(e) => leptos::logging::error!("Upload error: {:?}", e),
                             }
                         });
@@ -86,7 +90,9 @@ pub fn ImageUploader(
     };
 
     let on_remove = move |idx: usize| {
-        preview_urls.update(|v| { v.remove(idx); });
+        preview_urls.update(|v| {
+            v.remove(idx);
+        });
     };
 
     view! {
